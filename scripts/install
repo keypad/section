@@ -33,18 +33,22 @@ fi
 
 cp -R "$app" "$stage/"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "$volume" -srcfolder "$stage" -ov -format UDRW "$rw" >/dev/null
+hdi="/usr/bin/hdiutil"
+osas="/usr/bin/osascript"
 
-attach="$(hdiutil attach -readwrite -noverify -noautoopen "$rw")"
+"$hdi" create -volname "$volume" -srcfolder "$stage" -ov -format UDRW "$rw" >/dev/null
+
+attach="$("$hdi" attach -readwrite -noverify -noautoopen "$rw")"
 device="$(echo "$attach" | awk '/^\/dev\// {print $1; exit}')"
 mount="$(echo "$attach" | awk '/\/Volumes\// {print substr($0, index($0, "/Volumes/")); exit}')"
+diskname="$(basename "$mount")"
 
 mkdir -p "$mount/.background"
 cp dist/background.png "$mount/.background/background.png"
 
-osascript <<EOF
+"$osas" <<EOF
 tell application "Finder"
-  tell disk "$volume"
+  tell disk "$diskname"
     open
     set current view of container window to icon view
     set toolbar visible of container window to false
@@ -54,9 +58,10 @@ tell application "Finder"
     set arrangement of opts to not arranged
     set icon size of opts to 128
     set text size of opts to 14
-    set background picture of opts to POSIX file "$mount/.background/background.png"
-    set position of item "Section.app" of container window to {230, 300}
-    set position of item "Applications" of container window to {670, 300}
+    set background picture of opts to (POSIX file "$mount/.background/background.png" as alias)
+    set position of item "Section.app" of container window to {250, 300}
+    set position of item "Applications" of container window to {650, 300}
+    set the extension hidden of item "Section.app" to true
     close
     open
     update without registering applications
@@ -65,8 +70,17 @@ tell application "Finder"
 end tell
 EOF
 
-hdiutil detach "$device" -quiet
-hdiutil convert "$rw" -ov -format UDZO -imagekey zlib-level=9 -o "$dmg" >/dev/null
+for item in "$mount/.fseventsd" "$mount/.Trashes" "$mount/.TemporaryItems" "$mount/.Spotlight-V100"; do
+	rm -rf "$item" >/dev/null 2>&1 || true
+done
+
+for item in "$mount/.background" "$mount/.background/background.png"; do
+	chflags hidden "$item" >/dev/null 2>&1 || true
+	xcrun SetFile -a V "$item" >/dev/null 2>&1 || true
+done
+
+"$hdi" detach "$device" -quiet
+"$hdi" convert "$rw" -ov -format UDZO -imagekey zlib-level=9 -o "$dmg" >/dev/null
 rm -f "$rw"
 rm -rf "$stage"
 
