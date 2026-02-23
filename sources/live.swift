@@ -49,6 +49,7 @@ final class Box: NSObject, SCStreamOutput {
 	private let context = CIContext()
 	private let lock = NSLock()
 	private var meta: Meta?
+	private var switching = false
 	private var stream: SCStream?
 
 	init(push: @escaping @Sendable (CGWindowID, NSImage) -> Void) {
@@ -57,12 +58,19 @@ final class Box: NSObject, SCStreamOutput {
 
 	@MainActor
 	func set(_ item: WindowItem) async {
-		setmeta(Meta(id: item.id, bounds: item.bounds))
 		if stream == nil {
-			await open(item.id, bounds: item.bounds)
+			let ok = await open(item.id, bounds: item.bounds)
+			if ok {
+				setmeta(Meta(id: item.id, bounds: item.bounds))
+			}
 			return
 		}
-		await update(item.id, bounds: item.bounds)
+		setswitching(true)
+		let ok = await update(item.id, bounds: item.bounds)
+		setswitching(false)
+		if ok {
+			setmeta(Meta(id: item.id, bounds: item.bounds))
+		}
 	}
 
 	@MainActor
@@ -70,13 +78,14 @@ final class Box: NSObject, SCStreamOutput {
 		guard let stream else { return }
 		self.stream = nil
 		try? await stream.stopCapture()
+		clear()
 	}
 
 	@MainActor
-	private func open(_ id: CGWindowID, bounds: CGRect) async {
+	private func open(_ id: CGWindowID, bounds: CGRect) async -> Bool {
 		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-		guard let windows = content?.windows else { return }
-		guard let window = windows.first(where: { $0.windowID == id }) else { return }
+		guard let windows = content?.windows else { return false }
+		guard let window = windows.first(where: { $0.windowID == id }) else { return false }
 
 		let filter = SCContentFilter(desktopIndependentWindow: window)
 		let config = config(bounds)
@@ -84,26 +93,27 @@ final class Box: NSObject, SCStreamOutput {
 		self.stream = stream
 		try? stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
 		try? await stream.startCapture()
+		return true
 	}
 
 	@MainActor
-	private func update(_ id: CGWindowID, bounds: CGRect) async {
+	private func update(_ id: CGWindowID, bounds: CGRect) async -> Bool {
 		guard let stream else {
-			await open(id, bounds: bounds)
-			return
+			return await open(id, bounds: bounds)
 		}
 		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-		guard let windows = content?.windows else { return }
-		guard let window = windows.first(where: { $0.windowID == id }) else { return }
+		guard let windows = content?.windows else { return false }
+		guard let window = windows.first(where: { $0.windowID == id }) else { return false }
 		let filter = SCContentFilter(desktopIndependentWindow: window)
 		let next = config(bounds)
 		do {
 			try await stream.updateConfiguration(next)
 			try await stream.updateContentFilter(filter)
+			return true
 		} catch {
 			try? await stream.stopCapture()
 			self.stream = nil
-			await open(id, bounds: bounds)
+			return await open(id, bounds: bounds)
 		}
 	}
 
@@ -136,8 +146,29 @@ final class Box: NSObject, SCStreamOutput {
 		return value
 	}
 
+	private func setswitching(_ value: Bool) {
+		lock.lock()
+		switching = value
+		lock.unlock()
+	}
+
+	private func getswitching() -> Bool {
+		lock.lock()
+		let value = switching
+		lock.unlock()
+		return value
+	}
+
+	private func clear() {
+		lock.lock()
+		meta = nil
+		switching = false
+		lock.unlock()
+	}
+
 	func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
 		guard outputType == .screen else { return }
+		guard !getswitching() else { return }
 		guard complete(sampleBuffer) else { return }
 		guard let current = getmeta() else { return }
 		guard let buffer = sampleBuffer.imageBuffer else { return }
