@@ -54,34 +54,10 @@ func background(_ path: String) {
 
 	let rect = NSRect(origin: .zero, size: size)
 	let gradient = NSGradient(colors: [
-		NSColor(calibratedWhite: 0.12, alpha: 1),
-		NSColor(calibratedWhite: 0.08, alpha: 1)
+		NSColor(calibratedRed: 0.1, green: 0.11, blue: 0.13, alpha: 1),
+		NSColor(calibratedRed: 0.08, green: 0.09, blue: 0.11, alpha: 1)
 	])
-	gradient?.draw(in: rect, angle: -20)
-
-	let panel = NSBezierPath(roundedRect: NSRect(x: 70, y: 110, width: 760, height: 340), xRadius: 24, yRadius: 24)
-	NSColor(calibratedRed: 0.16, green: 0.17, blue: 0.2, alpha: 0.72).setFill()
-	panel.fill()
-	NSColor(calibratedRed: 1, green: 1, blue: 1, alpha: 0.08).setStroke()
-	panel.lineWidth = 2
-	panel.stroke()
-
-	let warm = NSColor(calibratedRed: 0.83, green: 0.69, blue: 0.55, alpha: 0.26)
-	warm.setStroke()
-	let arrow = NSBezierPath()
-	arrow.move(to: NSPoint(x: 380, y: 290))
-	arrow.line(to: NSPoint(x: 520, y: 290))
-	arrow.lineWidth = 8
-	arrow.lineCapStyle = .round
-	arrow.stroke()
-	let head = NSBezierPath()
-	head.move(to: NSPoint(x: 490, y: 318))
-	head.line(to: NSPoint(x: 520, y: 290))
-	head.line(to: NSPoint(x: 490, y: 262))
-	head.lineWidth = 8
-	head.lineJoinStyle = .round
-	head.lineCapStyle = .round
-	head.stroke()
+	gradient?.draw(in: rect, angle: 0)
 
 	image.unlockFocus()
 	save(image, path)
