@@ -25,6 +25,10 @@ final class Hotkey: @unchecked Sendable {
 		setup()
 	}
 
+	func reset() {
+		active = false
+	}
+
 	@MainActor
 	private func setup() {
 		let mask: CGEventMask = (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
@@ -43,11 +47,7 @@ final class Hotkey: @unchecked Sendable {
 			eventsOfInterest: mask,
 			callback: callback,
 			userInfo: refcon
-		) else {
-			print("event tap failed — check accessibility permission")
-			return
-		}
-		print("event tap created")
+		) else { return }
 
 		self.tap = tap
 		source = CFMachPortCreateRunLoopSource(nil, tap, 0)
@@ -72,10 +72,9 @@ final class Hotkey: @unchecked Sendable {
 
 		let flags = event.flags
 		let keycode = event.getIntegerValueField(.keyboardEventKeycode)
+		let optionDown = flags.contains(.maskAlternate)
 
 		if type == .flagsChanged {
-			let optionDown = flags.contains(.maskAlternate)
-
 			if !optionDown && active {
 				active = false
 				let elapsed = CFAbsoluteTimeGetCurrent() - showTime
@@ -86,13 +85,11 @@ final class Hotkey: @unchecked Sendable {
 						self?.handler?.confirm()
 					}
 				}
-				return Unmanaged.passRetained(event)
 			}
-
 			return Unmanaged.passRetained(event)
 		}
 
-		if type == .keyDown && flags.contains(.maskAlternate) {
+		if type == .keyDown && optionDown {
 			if keycode == Int64(kVK_Tab) {
 				if !active {
 					active = true
@@ -119,6 +116,13 @@ final class Hotkey: @unchecked Sendable {
 					self?.handler?.cancel()
 				}
 				return nil
+			}
+		}
+
+		if type == .keyDown && !optionDown && active {
+			active = false
+			DispatchQueue.main.async { [weak self] in
+				self?.handler?.cancel()
 			}
 		}
 
