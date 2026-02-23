@@ -47,28 +47,11 @@ func icon(_ path: String) {
 	save(image, path)
 }
 
-func background(_ path: String) {
-	let size = NSSize(width: 900, height: 560)
-	let image = NSImage(size: size)
-	image.lockFocus()
-
-	let rect = NSRect(origin: .zero, size: size)
-	let gradient = NSGradient(colors: [
-		NSColor(calibratedRed: 0.1, green: 0.11, blue: 0.13, alpha: 1),
-		NSColor(calibratedRed: 0.08, green: 0.09, blue: 0.11, alpha: 1)
-	])
-	gradient?.draw(in: rect, angle: 0)
-
-	image.unlockFocus()
-	save(image, path)
-}
-
 let args = CommandLine.arguments
 icon(args[1])
-background(args[2])
 SWIFT
 
-swift "$work/draw.swift" "$work/icon.png" "$out/background.png"
+swift "$work/draw.swift" "$work/icon.png"
 
 mkdir -p "$work/icon.iconset"
 for size in 16 32 128 256 512; do
