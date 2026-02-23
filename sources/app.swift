@@ -10,6 +10,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var video = false
 	private var permonitor = true
 	private var theme = Theme.normal
+	private var accent = Accent.warm
 	private var retunework: DispatchWorkItem?
 	private var laststep: CFAbsoluteTime = 0
 	private var session = 0
@@ -24,6 +25,12 @@ final class App: NSObject, NSApplicationDelegate {
 	private var normalitem: NSMenuItem?
 	private var squareitem: NSMenuItem?
 	private var minimalitem: NSMenuItem?
+	private var warmitem: NSMenuItem?
+	private var catppuccinitem: NSMenuItem?
+	private var norditem: NSMenuItem?
+	private var tokyonightitem: NSMenuItem?
+	private var gruvboxitem: NSMenuItem?
+	private var solarizeditem: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
@@ -80,6 +87,29 @@ final class App: NSObject, NSApplicationDelegate {
 		let minimal = NSMenuItem(title: "Minimal", action: #selector(setminimal), keyEquivalent: "")
 		minimal.target = self
 		thememenu.addItem(minimal)
+		thememenu.addItem(.separator())
+		let colormenu = NSMenu()
+		let warm = NSMenuItem(title: "Warm", action: #selector(setwarm), keyEquivalent: "")
+		warm.target = self
+		colormenu.addItem(warm)
+		let catppuccin = NSMenuItem(title: "Catppuccin", action: #selector(setcatppuccin), keyEquivalent: "")
+		catppuccin.target = self
+		colormenu.addItem(catppuccin)
+		let nord = NSMenuItem(title: "Nord", action: #selector(setnord), keyEquivalent: "")
+		nord.target = self
+		colormenu.addItem(nord)
+		let tokyonight = NSMenuItem(title: "Tokyo Night", action: #selector(settokyonight), keyEquivalent: "")
+		tokyonight.target = self
+		colormenu.addItem(tokyonight)
+		let gruvbox = NSMenuItem(title: "Gruvbox", action: #selector(setgruvbox), keyEquivalent: "")
+		gruvbox.target = self
+		colormenu.addItem(gruvbox)
+		let solarized = NSMenuItem(title: "Solarized", action: #selector(setsolarized), keyEquivalent: "")
+		solarized.target = self
+		colormenu.addItem(solarized)
+		let coloritem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
+		coloritem.submenu = colormenu
+		thememenu.addItem(coloritem)
 		let themeitem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
 		themeitem.submenu = thememenu
 		menu.addItem(themeitem)
@@ -101,6 +131,12 @@ final class App: NSObject, NSApplicationDelegate {
 		self.normalitem = normal
 		self.squareitem = square
 		self.minimalitem = minimal
+		self.warmitem = warm
+		self.catppuccinitem = catppuccin
+		self.norditem = nord
+		self.tokyonightitem = tokyonight
+		self.gruvboxitem = gruvbox
+		self.solarizeditem = solarized
 		update()
 	}
 
@@ -113,6 +149,12 @@ final class App: NSObject, NSApplicationDelegate {
 		normalitem?.state = theme == .normal ? .on : .off
 		squareitem?.state = theme == .square ? .on : .off
 		minimalitem?.state = theme == .minimal ? .on : .off
+		warmitem?.state = accent == .warm ? .on : .off
+		catppuccinitem?.state = accent == .catppuccin ? .on : .off
+		norditem?.state = accent == .nord ? .on : .off
+		tokyonightitem?.state = accent == .tokyonight ? .on : .off
+		gruvboxitem?.state = accent == .gruvbox ? .on : .off
+		solarizeditem?.state = accent == .solarized ? .on : .off
 	}
 
 	@objc
@@ -149,6 +191,36 @@ final class App: NSObject, NSApplicationDelegate {
 	}
 
 	@objc
+	private func setwarm() {
+		setaccent(.warm)
+	}
+
+	@objc
+	private func setcatppuccin() {
+		setaccent(.catppuccin)
+	}
+
+	@objc
+	private func setnord() {
+		setaccent(.nord)
+	}
+
+	@objc
+	private func settokyonight() {
+		setaccent(.tokyonight)
+	}
+
+	@objc
+	private func setgruvbox() {
+		setaccent(.gruvbox)
+	}
+
+	@objc
+	private func setsolarized() {
+		setaccent(.solarized)
+	}
+
+	@objc
 	private func togglelogin() {
 		let next = !Launch.enabled()
 		_ = Launch.set(next)
@@ -173,13 +245,20 @@ final class App: NSObject, NSApplicationDelegate {
 		if theme == .minimal {
 			stop()
 		}
-		overlay?.show(on: Screens.current(), state: state, theme: theme)
+		overlay?.show(on: Screens.current(), state: state, theme: theme, accent: accent)
 		if theme == .minimal { return }
 		applysnapshot(items: state.items, animated: false)
 		if video {
 			start()
 			startvideo()
 		}
+	}
+
+	private func setaccent(_ next: Accent) {
+		accent = next
+		update()
+		guard open else { return }
+		overlay?.show(on: Screens.current(), state: state, theme: theme, accent: accent)
 	}
 }
 
@@ -193,7 +272,7 @@ extension App: HotkeyHandler {
 		state.reset(with: items)
 		session += 1
 		refreshid = 0
-		overlay?.show(on: screen, state: state, theme: theme)
+		overlay?.show(on: screen, state: state, theme: theme, accent: accent)
 		open = true
 		if theme == .minimal { return }
 		applysnapshot(items: items, animated: true)
