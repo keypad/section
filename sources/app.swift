@@ -263,11 +263,16 @@ extension App: HotkeyHandler {
 		guard !items.isEmpty else { return }
 		videobusy = true
 		let ticket = session
+		let selected = state.selected?.id
 		Capture.frames(for: items) { [weak self] results in
 			guard let self else { return }
 			self.videobusy = false
 			guard self.open else { return }
 			guard ticket == self.session else { return }
+			if let selected {
+				self.state.apply(results.filter { $0.key != selected }, animated: false)
+				return
+			}
 			self.state.apply(results, animated: false)
 		}
 	}
