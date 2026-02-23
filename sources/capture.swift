@@ -88,7 +88,7 @@ enum Capture {
 
 		if current < ratio {
 			let target = floor(width / ratio)
-			rect = CGRect(x: 0, y: height - target, width: width, height: target)
+			rect = CGRect(x: 0, y: 0, width: width, height: target)
 		}
 
 		return image.cropping(to: rect) ?? image
