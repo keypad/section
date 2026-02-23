@@ -16,9 +16,6 @@ enum Icon {
 		front.lineWidth = 1.5
 		front.stroke()
 
-		let bar = NSBezierPath(roundedRect: NSRect(x: 7.4, y: 8.7, width: 6.8, height: 1.8), xRadius: 0.9, yRadius: 0.9)
-		bar.fill()
-
 		image.unlockFocus()
 		image.isTemplate = true
 		return image
