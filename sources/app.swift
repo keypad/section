@@ -8,9 +8,11 @@ final class App: NSObject, NSApplicationDelegate {
 	private var live: Live?
 	private var open = false
 	private var video = false
+	private var permonitor = true
 	private var tray: NSStatusItem?
 	private var pictureitem: NSMenuItem?
 	private var videoitem: NSMenuItem?
+	private var monitoritem: NSMenuItem?
 	private var loginitem: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
@@ -43,6 +45,9 @@ final class App: NSObject, NSApplicationDelegate {
 		let video = NSMenuItem(title: "Video", action: #selector(setvideo), keyEquivalent: "v")
 		video.target = self
 		menu.addItem(video)
+		let monitor = NSMenuItem(title: "Per Monitor", action: #selector(togglemonitor), keyEquivalent: "m")
+		monitor.target = self
+		menu.addItem(monitor)
 		menu.addItem(.separator())
 		let login = NSMenuItem(title: "Launch At Login", action: #selector(togglelogin), keyEquivalent: "l")
 		login.target = self
@@ -56,6 +61,7 @@ final class App: NSObject, NSApplicationDelegate {
 		self.tray = tray
 		self.pictureitem = picture
 		self.videoitem = video
+		self.monitoritem = monitor
 		self.loginitem = login
 		update()
 	}
@@ -63,6 +69,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private func update() {
 		pictureitem?.state = video ? .off : .on
 		videoitem?.state = video ? .on : .off
+		monitoritem?.state = permonitor ? .on : .off
 		loginitem?.state = Launch.enabled() ? .on : .off
 		loginitem?.isEnabled = Launch.available()
 	}
@@ -91,6 +98,12 @@ final class App: NSObject, NSApplicationDelegate {
 	}
 
 	@objc
+	private func togglemonitor() {
+		permonitor.toggle()
+		update()
+	}
+
+	@objc
 	private func exit() {
 		NSApplication.shared.terminate(nil)
 	}
@@ -99,7 +112,7 @@ final class App: NSObject, NSApplicationDelegate {
 extension App: HotkeyHandler {
 	func show() {
 		let screen = Screens.current()
-		let items = Windows.list(on: screen)
+		let items = windows()
 
 		if items.isEmpty { return }
 
@@ -139,8 +152,7 @@ extension App: HotkeyHandler {
 	}
 
 	func quickswitch() {
-		let screen = Screens.current()
-		let items = Windows.list(on: screen)
+		let items = windows()
 		guard items.count > 1 else { return }
 		Focus.activate(items[1])
 	}
@@ -165,5 +177,12 @@ extension App: HotkeyHandler {
 		Capture.thumbnails(for: items, focus: state.index) { [weak self] results in
 			self?.state.apply(results, animated: false)
 		}
+	}
+
+	private func windows() -> [WindowItem] {
+		if permonitor {
+			return Windows.list(on: Screens.current())
+		}
+		return Windows.list(on: nil)
 	}
 }
