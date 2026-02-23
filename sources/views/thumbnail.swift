@@ -4,11 +4,11 @@ struct ThumbnailView: View {
 	let item: WindowItem
 	let selected: Bool
 	let theme: Theme
+	let accent: Accent
 	private static var cache: [CGWindowID: Color] = [:]
 	private static var order: [CGWindowID] = []
 	private static let limit = 256
 
-	private let accent = Color(red: 0.832, green: 0.69, blue: 0.549)
 	private let shape = Rectangle()
 	private let height: CGFloat = 160
 	private let bar: CGFloat = 28
@@ -44,7 +44,7 @@ struct ThumbnailView: View {
 			.background(Color.black.opacity(0.45))
 			.overlay(
 				shape.strokeBorder(
-					selected ? accent : .white.opacity(0.08),
+					selected ? accent.color : .white.opacity(0.08),
 					lineWidth: selected ? 2 : 1
 				)
 			)
@@ -92,11 +92,11 @@ struct ThumbnailView: View {
 			.clipShape(shape)
 			.overlay(
 				shape.strokeBorder(
-					selected ? accent : .white.opacity(0.08),
+					selected ? accent.color : .white.opacity(0.08),
 					lineWidth: selected ? 2 : 1
 				)
 			)
-			.shadow(color: selected ? accent.opacity(0.12) : .clear, radius: 4)
+			.shadow(color: selected ? accent.color.opacity(0.12) : .clear, radius: 4)
 		}
 	}
 

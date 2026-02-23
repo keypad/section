@@ -48,7 +48,7 @@ final class Panel {
 		}
 	}
 
-	func show(on screen: NSScreen, state: SwitcherState, theme: Theme) {
+	func show(on screen: NSScreen, state: SwitcherState, theme: Theme, accent: Accent) {
 		if observer == nil { setup() }
 		self.state = state
 		dismiss()
@@ -88,7 +88,7 @@ final class Panel {
 		blur.state = .active
 		blur.blendingMode = .behindWindow
 
-		let view = SwitcherView(state: state, theme: theme)
+		let view = SwitcherView(state: state, theme: theme, accent: accent)
 		let hostView = NSHostingView(rootView: view)
 		hosting = hostView
 
