@@ -9,6 +9,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var open = false
 	private var video = false
 	private var permonitor = true
+	private var retunework: DispatchWorkItem?
+	private var refreshwork: DispatchWorkItem?
 	private var tray: NSStatusItem?
 	private var pictureitem: NSMenuItem?
 	private var videoitem: NSMenuItem?
@@ -127,12 +129,12 @@ extension App: HotkeyHandler {
 
 	func next() {
 		state.next()
-		if video { retune() }
+		if video { queuevideo() }
 	}
 
 	func previous() {
 		state.previous()
-		if video { retune() }
+		if video { queuevideo() }
 	}
 
 	func confirm() {
@@ -163,12 +165,34 @@ extension App: HotkeyHandler {
 	}
 
 	private func stop() {
+		retunework?.cancel()
+		retunework = nil
+		refreshwork?.cancel()
+		refreshwork = nil
 		live?.stop()
+	}
+
+	private func queuevideo() {
+		retunework?.cancel()
+		let work = DispatchWorkItem { [weak self] in
+			self?.retune()
+		}
+		retunework = work
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
 	}
 
 	private func retune() {
 		live?.start(item: state.selected)
-		refresh()
+		queuerefresh()
+	}
+
+	private func queuerefresh() {
+		refreshwork?.cancel()
+		let work = DispatchWorkItem { [weak self] in
+			self?.refresh()
+		}
+		refreshwork = work
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
 	}
 
 	private func refresh() {
