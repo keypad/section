@@ -12,6 +12,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var tray: NSStatusItem?
 	private var pictureitem: NSMenuItem?
 	private var videoitem: NSMenuItem?
+	private var loginitem: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
@@ -41,6 +42,10 @@ final class App: NSObject, NSApplicationDelegate {
 		video.target = self
 		menu.addItem(video)
 		menu.addItem(.separator())
+		let login = NSMenuItem(title: "Launch At Login", action: #selector(togglelogin), keyEquivalent: "l")
+		login.target = self
+		menu.addItem(login)
+		menu.addItem(.separator())
 		let quit = NSMenuItem(title: "Quit", action: #selector(exit), keyEquivalent: "q")
 		quit.target = self
 		menu.addItem(quit)
@@ -49,12 +54,15 @@ final class App: NSObject, NSApplicationDelegate {
 		self.tray = tray
 		self.pictureitem = picture
 		self.videoitem = video
+		self.loginitem = login
 		update()
 	}
 
 	private func update() {
 		pictureitem?.state = video ? .off : .on
 		videoitem?.state = video ? .on : .off
+		loginitem?.state = Launch.enabled() ? .on : .off
+		loginitem?.isEnabled = Launch.available()
 	}
 
 	@objc
@@ -71,6 +79,13 @@ final class App: NSObject, NSApplicationDelegate {
 		if open {
 			start()
 		}
+	}
+
+	@objc
+	private func togglelogin() {
+		let next = !Launch.enabled()
+		_ = Launch.set(next)
+		update()
 	}
 
 	@objc
