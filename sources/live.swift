@@ -177,13 +177,13 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 
 	private func config(_ bounds: CGRect) -> SCStreamConfiguration {
 		let config = SCStreamConfiguration()
-		let cap: CGFloat = 480
+		let cap: CGFloat = 320
 		let w = bounds.width
 		let h = bounds.height
 		let fit = min(cap / w, cap / h, 1)
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
-		config.minimumFrameInterval = CMTime(value: 1, timescale: 8)
+		config.minimumFrameInterval = CMTime(value: 1, timescale: 6)
 		config.queueDepth = 2
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
@@ -248,7 +248,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	private func allowpush() -> Bool {
 		let now = CFAbsoluteTimeGetCurrent()
 		lock.lock()
-		if now - last < 1.0 / 8.0 {
+		if now - last < 1.0 / 6.0 {
 			lock.unlock()
 			return false
 		}
