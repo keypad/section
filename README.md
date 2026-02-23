@@ -2,17 +2,23 @@
 > what is this?
 
   per-monitor window switcher for macos.
-  keyboard-first with clean previews.
+  keyboard-first with clean previews and optional video mode.
   lightweight and simple to install.
 
 > features?
 
   ✓ per-monitor window switching
   ✓ option+tab quickswitch + hold-to-open flow
-  ✓ live selected preview mode (test)
+  ✓ picture mode (default)
+  ✓ video mode (menu toggle)
   ✓ adaptive preview sizing per window
   ✓ accessibility + screen capture integration
   ✓ zero external dependencies
+
+> defaults?
+
+  picture mode: on
+  per monitor: on
 
 > controls?
 
@@ -23,14 +29,32 @@
   esc                 → cancel
   option+`            → toggle lock mode (testing)
 
+> menu options?
+
+  picture
+  video
+  per monitor
+  launch at login
+  quit
+
 > stack?
 
   swift 6 · appkit · swiftui · screencapturekit
+
+> permissions?
+
+  accessibility (hotkeys + window focus)
+  screen recording (previews)
 
 > run?
 
   swift run
   ./watch.local
+
+> install?
+
+  for now: build from source
+  planned: signed dmg + homebrew cask
 
 > links?
 
