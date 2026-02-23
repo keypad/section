@@ -1,0 +1,137 @@
+import AppKit
+import Carbon.HIToolbox
+
+@MainActor
+protocol HotkeyHandler: AnyObject {
+	func show()
+	func next()
+	func previous()
+	func confirm()
+	func cancel()
+	func quickswitch()
+}
+
+final class Hotkey: @unchecked Sendable {
+	private var tap: CFMachPort?
+	private var source: CFRunLoopSource?
+	private var timer: Timer?
+	private weak var handler: (any HotkeyHandler)?
+	private var active = false
+	private var showTime: CFAbsoluteTime = 0
+
+	@MainActor
+	init(handler: any HotkeyHandler) {
+		self.handler = handler
+		setup()
+	}
+
+	@MainActor
+	private func setup() {
+		let mask: CGEventMask = (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
+		let callback: CGEventTapCallBack = { _, type, event, refcon in
+			guard let refcon else { return Unmanaged.passRetained(event) }
+			let this = Unmanaged<Hotkey>.fromOpaque(refcon).takeUnretainedValue()
+			return this.handle(type: type, event: event)
+		}
+
+		let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+
+		guard let tap = CGEvent.tapCreate(
+			tap: .cgSessionEventTap,
+			place: .headInsertEventTap,
+			options: .defaultTap,
+			eventsOfInterest: mask,
+			callback: callback,
+			userInfo: refcon
+		) else {
+			print("event tap failed — check accessibility permission")
+			return
+		}
+		print("event tap created")
+
+		self.tap = tap
+		source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+		CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+		CGEvent.tapEnable(tap: tap, enable: true)
+
+		timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+			self?.reenable()
+		}
+	}
+
+	private func reenable() {
+		guard let tap, !CGEvent.tapIsEnabled(tap: tap) else { return }
+		CGEvent.tapEnable(tap: tap, enable: true)
+	}
+
+	nonisolated private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+		if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+			reenable()
+			return Unmanaged.passRetained(event)
+		}
+
+		let flags = event.flags
+		let keycode = event.getIntegerValueField(.keyboardEventKeycode)
+
+		if type == .flagsChanged {
+			let optionDown = flags.contains(.maskAlternate)
+
+			if !optionDown && active {
+				active = false
+				let elapsed = CFAbsoluteTimeGetCurrent() - showTime
+				DispatchQueue.main.async { [weak self] in
+					if elapsed < 0.15 {
+						self?.handler?.quickswitch()
+					} else {
+						self?.handler?.confirm()
+					}
+				}
+				return Unmanaged.passRetained(event)
+			}
+
+			return Unmanaged.passRetained(event)
+		}
+
+		if type == .keyDown && flags.contains(.maskAlternate) {
+			if keycode == Int64(kVK_Tab) {
+				if !active {
+					active = true
+					showTime = CFAbsoluteTimeGetCurrent()
+					DispatchQueue.main.async { [weak self] in
+						self?.handler?.show()
+					}
+				} else {
+					let shift = flags.contains(.maskShift)
+					DispatchQueue.main.async { [weak self] in
+						if shift {
+							self?.handler?.previous()
+						} else {
+							self?.handler?.next()
+						}
+					}
+				}
+				return nil
+			}
+
+			if keycode == Int64(kVK_Escape) && active {
+				active = false
+				DispatchQueue.main.async { [weak self] in
+					self?.handler?.cancel()
+				}
+				return nil
+			}
+		}
+
+		return Unmanaged.passRetained(event)
+	}
+
+	deinit {
+		timer?.invalidate()
+		if let tap {
+			CGEvent.tapEnable(tap: tap, enable: false)
+		}
+		if let source {
+			CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+		}
+	}
+}

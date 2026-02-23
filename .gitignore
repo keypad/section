@@ -1,0 +1,6 @@
+.build
+.swiftpm
+Package.resolved
+CLAUDE.md
+AGENTS.md
+.env
