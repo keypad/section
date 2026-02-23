@@ -8,7 +8,7 @@ struct ThumbnailView: View {
 	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
 	private let width: CGFloat = 200
 	private let height: CGFloat = 160
-	private let label: CGFloat = 24
+	private let label: CGFloat = 20
 
 	var body: some View {
 		VStack(spacing: 0) {
