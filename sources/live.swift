@@ -53,6 +53,7 @@ final class Box: NSObject, SCStreamOutput {
 	private var stream: SCStream?
 	private var table: [CGWindowID: SCWindow] = [:]
 	private var active: CGWindowID?
+	private var size: CGSize?
 
 	init(push: @escaping @Sendable (CGWindowID, NSImage) -> Void) {
 		self.push = push
@@ -65,7 +66,7 @@ final class Box: NSObject, SCStreamOutput {
 			return
 		}
 		if stream == nil {
-			let ok = await open(item.id)
+			let ok = await open(item.id, bounds: item.bounds)
 			if ok {
 				active = item.id
 				setmeta(Meta(id: item.id, bounds: item.bounds))
@@ -73,7 +74,7 @@ final class Box: NSObject, SCStreamOutput {
 			return
 		}
 		setswitching(true)
-		let ok = await update(item.id)
+		let ok = await update(item.id, bounds: item.bounds)
 		setswitching(false)
 		if ok {
 			active = item.id
@@ -88,36 +89,45 @@ final class Box: NSObject, SCStreamOutput {
 		try? await stream.stopCapture()
 		table = [:]
 		active = nil
+		size = nil
 		clear()
 	}
 
 	@MainActor
-	private func open(_ id: CGWindowID) async -> Bool {
+	private func open(_ id: CGWindowID, bounds: CGRect) async -> Bool {
 		guard let window = await window(id) else { return false }
 
 		let filter = SCContentFilter(desktopIndependentWindow: window)
-		let config = config()
+		let config = config(bounds)
 		let stream = SCStream(filter: filter, configuration: config, delegate: nil)
 		self.stream = stream
+		size = CGSize(width: config.width, height: config.height)
 		try? stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
 		try? await stream.startCapture()
 		return true
 	}
 
 	@MainActor
-	private func update(_ id: CGWindowID) async -> Bool {
+	private func update(_ id: CGWindowID, bounds: CGRect) async -> Bool {
 		guard let stream else {
-			return await open(id)
+			return await open(id, bounds: bounds)
 		}
 		guard let window = await window(id) else { return false }
 		let filter = SCContentFilter(desktopIndependentWindow: window)
+		let next = config(bounds)
+		let nextsize = CGSize(width: next.width, height: next.height)
 		do {
+			if size != nextsize {
+				try await stream.updateConfiguration(next)
+				size = nextsize
+			}
 			try await stream.updateContentFilter(filter)
 			return true
 		} catch {
 			try? await stream.stopCapture()
 			self.stream = nil
-			return await open(id)
+			size = nil
+			return await open(id, bounds: bounds)
 		}
 	}
 
@@ -138,10 +148,14 @@ final class Box: NSObject, SCStreamOutput {
 		return table[id]
 	}
 
-	private func config() -> SCStreamConfiguration {
+	private func config(_ bounds: CGRect) -> SCStreamConfiguration {
 		let config = SCStreamConfiguration()
-		config.width = 640
-		config.height = 400
+		let cap: CGFloat = 480
+		let w = bounds.width
+		let h = bounds.height
+		let fit = min(cap / w, cap / h, 1)
+		config.width = Int(w * fit * 2)
+		config.height = Int(h * fit * 2)
 		config.minimumFrameInterval = CMTime(value: 1, timescale: 12)
 		config.queueDepth = 2
 		config.showsCursor = false
