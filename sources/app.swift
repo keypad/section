@@ -245,7 +245,7 @@ extension App: HotkeyHandler {
 
 	private func startvideo() {
 		stopvideo()
-		videotimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+		videotimer = Timer.scheduledTimer(withTimeInterval: 0.60, repeats: true) { [weak self] _ in
 			self?.videotick()
 		}
 	}
@@ -258,6 +258,7 @@ extension App: HotkeyHandler {
 
 	private func videotick() {
 		guard open, video else { return }
+		guard retunework == nil else { return }
 		guard !videobusy else { return }
 		let items = state.items
 		guard !items.isEmpty else { return }
