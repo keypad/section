@@ -10,7 +10,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var open = false
 	private var video = false
 	private var tray: NSStatusItem?
-	private var item: NSMenuItem?
+	private var pictureitem: NSMenuItem?
+	private var videoitem: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
@@ -33,9 +34,12 @@ final class App: NSObject, NSApplicationDelegate {
 		menu.addItem(head)
 		menu.addItem(.separator())
 
-		let item = NSMenuItem(title: "Video", action: #selector(toggle), keyEquivalent: "v")
-		item.target = self
-		menu.addItem(item)
+		let picture = NSMenuItem(title: "Picture", action: #selector(setpicture), keyEquivalent: "p")
+		picture.target = self
+		menu.addItem(picture)
+		let video = NSMenuItem(title: "Video", action: #selector(setvideo), keyEquivalent: "v")
+		video.target = self
+		menu.addItem(video)
 		menu.addItem(.separator())
 		let quit = NSMenuItem(title: "Quit", action: #selector(exit), keyEquivalent: "q")
 		quit.target = self
@@ -43,22 +47,29 @@ final class App: NSObject, NSApplicationDelegate {
 		tray.menu = menu
 
 		self.tray = tray
-		self.item = item
+		self.pictureitem = picture
+		self.videoitem = video
 		update()
 	}
 
 	private func update() {
-		item?.state = video ? .on : .off
+		pictureitem?.state = video ? .off : .on
+		videoitem?.state = video ? .on : .off
 	}
 
 	@objc
-	private func toggle() {
-		video.toggle()
+	private func setpicture() {
+		video = false
 		update()
-		if video, open {
+		stop()
+	}
+
+	@objc
+	private func setvideo() {
+		video = true
+		update()
+		if open {
 			start()
-		} else {
-			stop()
 		}
 	}
 
@@ -120,7 +131,9 @@ extension App: HotkeyHandler {
 	private func start() {
 		stop()
 		live = Timer.scheduledTimer(withTimeInterval: 1.0 / 24.0, repeats: true) { [weak self] _ in
-			self?.loop()
+			Task { @MainActor in
+				self?.loop()
+			}
 		}
 		loop()
 	}
@@ -132,13 +145,14 @@ extension App: HotkeyHandler {
 	}
 
 	private func loop() {
-		guard let item = state.selected else { return }
+		let items = state.items
+		guard !items.isEmpty else { return }
 		guard !busy else { return }
 		busy = true
-		Capture.thumbnail(for: item) { [weak self] image in
+		Capture.frames(for: items) { [weak self] images in
 			defer { self?.busy = false }
-			guard let image else { return }
-			self?.state.apply([item.id: image], animated: false)
+			guard !images.isEmpty else { return }
+			self?.state.apply(images, animated: false)
 		}
 	}
 }
