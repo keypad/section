@@ -8,7 +8,7 @@ struct ThumbnailView: View {
 	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
 	private let width: CGFloat = 200
 	private let height: CGFloat = 160
-	private let label: CGFloat = 30
+	private let label: CGFloat = 24
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -35,7 +35,7 @@ struct ThumbnailView: View {
 				if let icon = item.icon {
 					Image(nsImage: icon)
 						.resizable()
-						.frame(width: 14, height: 14)
+						.frame(width: 13, height: 13)
 				}
 				Text(item.name)
 					.font(.system(size: 11, weight: .medium))
