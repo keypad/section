@@ -30,16 +30,16 @@ final class App: NSObject, NSApplicationDelegate {
 
 		let menu = NSMenu()
 		menu.autoenablesItems = false
-		let head = NSMenuItem(title: "section", action: nil, keyEquivalent: "")
+		let head = NSMenuItem(title: "Section", action: nil, keyEquivalent: "")
 		head.isEnabled = false
 		menu.addItem(head)
 		menu.addItem(.separator())
 
-		let item = NSMenuItem(title: "video", action: #selector(toggle), keyEquivalent: "v")
+		let item = NSMenuItem(title: "Video", action: #selector(toggle), keyEquivalent: "v")
 		item.target = self
 		menu.addItem(item)
 		menu.addItem(.separator())
-		let quit = NSMenuItem(title: "quit", action: #selector(exit), keyEquivalent: "q")
+		let quit = NSMenuItem(title: "Quit", action: #selector(exit), keyEquivalent: "q")
 		quit.target = self
 		menu.addItem(quit)
 		tray.menu = menu
