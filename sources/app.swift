@@ -195,12 +195,12 @@ extension App: HotkeyHandler {
 			self?.retune()
 		}
 		retunework = work
-		DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
 	}
 
 	private func step(_ direction: Int) {
 		let now = CFAbsoluteTimeGetCurrent()
-		if now - laststep < 0.08 { return }
+		if now - laststep < 0.10 { return }
 		laststep = now
 		if direction > 0 {
 			state.next()
