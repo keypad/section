@@ -15,6 +15,7 @@ rw="$root/dist/section-$version-rw.dmg"
 volume="Section $version"
 
 swift build -c release
+rm -f "$root/dist/AppIcon.icns" "$root/dist/background.png"
 ./scripts/assets
 
 rm -rf "$app" "$stage" "$dmg" "$rw"
