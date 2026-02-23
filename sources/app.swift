@@ -7,8 +7,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var state = SwitcherState()
 	private var live: Live?
 	private var open = false
-	private var video = true
-	private var permonitor = false
+	private var video = false
+	private var permonitor = true
 	private var retunework: DispatchWorkItem?
 	private var laststep: CFAbsoluteTime = 0
 	private var session = 0
