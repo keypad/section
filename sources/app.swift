@@ -9,6 +9,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var open = false
 	private var video = false
 	private var permonitor = true
+	private var theme = Theme.normal
 	private var retunework: DispatchWorkItem?
 	private var laststep: CFAbsoluteTime = 0
 	private var session = 0
@@ -20,6 +21,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var videoitem: NSMenuItem?
 	private var monitoritem: NSMenuItem?
 	private var loginitem: NSMenuItem?
+	private var normalitem: NSMenuItem?
+	private var minimalitem: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
@@ -66,6 +69,16 @@ final class App: NSObject, NSApplicationDelegate {
 		let monitor = NSMenuItem(title: "Per Monitor", action: #selector(togglemonitor), keyEquivalent: "m")
 		monitor.target = self
 		menu.addItem(monitor)
+		let thememenu = NSMenu()
+		let normal = NSMenuItem(title: "Default", action: #selector(setnormal), keyEquivalent: "")
+		normal.target = self
+		thememenu.addItem(normal)
+		let minimal = NSMenuItem(title: "Minimal", action: #selector(setminimal), keyEquivalent: "")
+		minimal.target = self
+		thememenu.addItem(minimal)
+		let themeitem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+		themeitem.submenu = thememenu
+		menu.addItem(themeitem)
 		menu.addItem(.separator())
 		let login = NSMenuItem(title: "Launch At Login", action: #selector(togglelogin), keyEquivalent: "l")
 		login.target = self
@@ -81,6 +94,8 @@ final class App: NSObject, NSApplicationDelegate {
 		self.videoitem = video
 		self.monitoritem = monitor
 		self.loginitem = login
+		self.normalitem = normal
+		self.minimalitem = minimal
 		update()
 	}
 
@@ -90,6 +105,8 @@ final class App: NSObject, NSApplicationDelegate {
 		monitoritem?.state = permonitor ? .on : .off
 		loginitem?.state = Launch.enabled() ? .on : .off
 		loginitem?.isEnabled = Launch.available()
+		normalitem?.state = theme == .normal ? .on : .off
+		minimalitem?.state = theme == .minimal ? .on : .off
 	}
 
 	@objc
@@ -104,9 +121,32 @@ final class App: NSObject, NSApplicationDelegate {
 		video = true
 		update()
 		if open {
+			if theme == .minimal { return }
 			start()
 			startvideo()
 		}
+	}
+
+	@objc
+	private func setnormal() {
+		theme = .normal
+		update()
+		if !open { return }
+		overlay?.show(on: Screens.current(), state: state, theme: theme)
+		applysnapshot(items: state.items, animated: false)
+		if video {
+			start()
+			startvideo()
+		}
+	}
+
+	@objc
+	private func setminimal() {
+		theme = .minimal
+		update()
+		if !open { return }
+		stop()
+		overlay?.show(on: Screens.current(), state: state, theme: theme)
 	}
 
 	@objc
@@ -138,8 +178,9 @@ extension App: HotkeyHandler {
 		state.reset(with: items)
 		session += 1
 		refreshid = 0
-		overlay?.show(on: screen, state: state)
+		overlay?.show(on: screen, state: state, theme: theme)
 		open = true
+		if theme == .minimal { return }
 		applysnapshot(items: items, animated: true)
 		if video {
 			start()
@@ -208,7 +249,7 @@ extension App: HotkeyHandler {
 		} else {
 			state.previous()
 		}
-		if video { queuevideo() }
+		if video && theme == .normal { queuevideo() }
 	}
 
 	private func retune() {
@@ -229,6 +270,7 @@ extension App: HotkeyHandler {
 	}
 
 	private func applysnapshot(items: [WindowItem], animated: Bool) {
+		if theme == .minimal { return }
 		let ticket = session
 		refreshid += 1
 		let refresh = refreshid
@@ -244,6 +286,7 @@ extension App: HotkeyHandler {
 	}
 
 	private func startvideo() {
+		if theme == .minimal { return }
 		stopvideo()
 		videotimer = Timer.scheduledTimer(withTimeInterval: 0.60, repeats: true) { [weak self] _ in
 			self?.videotick()
@@ -258,6 +301,7 @@ extension App: HotkeyHandler {
 
 	private func videotick() {
 		guard open, video else { return }
+		guard theme == .normal else { return }
 		guard retunework == nil else { return }
 		guard !videobusy else { return }
 		let items = state.items
