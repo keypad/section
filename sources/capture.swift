@@ -4,7 +4,6 @@ import ScreenCaptureKit
 enum Capture {
 	static func thumbnails(for items: [WindowItem], completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
 		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-		let aspect: CGFloat = 200 / 160
 		Task {
 			var results: [CGWindowID: NSImage] = [:]
 
@@ -21,14 +20,13 @@ enum Capture {
 				let filter = SCContentFilter(desktopIndependentWindow: window)
 				let config = SCStreamConfiguration()
 
-				let scale: CGFloat = 2
-				let maxDim: CGFloat = 640
+				let maxDim: CGFloat = 720
 				let w = item.bounds.width
 				let h = item.bounds.height
-				let scaleRatio = min(maxDim / w, maxDim / h, 1)
+				let fit = min(maxDim / w, maxDim / h, 1)
 
-				config.width = Int(w * scaleRatio * scale)
-				config.height = Int(h * scaleRatio * scale)
+				config.width = Int(w * fit * 2)
+				config.height = Int(h * fit * 2)
 				config.scalesToFit = false
 				config.showsCursor = false
 				config.ignoreShadowsSingleWindow = true
@@ -36,13 +34,8 @@ enum Capture {
 				if let image = try? await SCScreenshotManager.captureImage(
 					contentFilter: filter,
 					configuration: config
-				) {
-					let source = crop(image, ratio: aspect)
-					let size = NSSize(
-						width: CGFloat(source.width) / scale,
-						height: CGFloat(source.height) / scale
-					)
-					results[wid] = NSImage(cgImage: source, size: size)
+				), let output = output(image) {
+					results[wid] = NSImage(cgImage: output, size: NSSize(width: 200, height: 160))
 				}
 			}
 
@@ -51,7 +44,14 @@ enum Capture {
 		}
 	}
 
-	private static func crop(_ image: CGImage, ratio: CGFloat) -> CGImage {
+	private static func output(_ image: CGImage) -> CGImage? {
+		let ratio: CGFloat = 200.0 / 160.0
+		guard let first = trim(image) else { return nil }
+		guard let second = center(first, ratio: ratio) else { return nil }
+		return scale(second, width: 400, height: 320)
+	}
+
+	private static func trim(_ image: CGImage) -> CGImage? {
 		let width = image.width
 		let height = image.height
 
@@ -69,28 +69,45 @@ enum Capture {
 			height: height - top - bottom
 		)
 
-		guard let first = image.cropping(to: rect) else { return image }
-		let fit = fit(first, ratio: ratio)
-		return first.cropping(to: fit) ?? first
+		return image.cropping(to: rect) ?? image
 	}
 
-	private static func fit(_ image: CGImage, ratio: CGFloat) -> CGRect {
+	private static func center(_ image: CGImage, ratio: CGFloat) -> CGImage? {
 		let width = CGFloat(image.width)
 		let height = CGFloat(image.height)
 		let current = width / height
 
+		var rect = CGRect(x: 0, y: 0, width: width, height: height)
+
 		if current > ratio {
 			let target = floor(height * ratio)
 			let inset = floor((width - target) / 2)
-			return CGRect(x: inset, y: 0, width: target, height: height)
+			rect = CGRect(x: inset, y: 0, width: target, height: height)
 		}
 
 		if current < ratio {
 			let target = floor(width / ratio)
 			let inset = floor((height - target) / 2)
-			return CGRect(x: 0, y: inset, width: width, height: target)
+			rect = CGRect(x: 0, y: inset, width: width, height: target)
 		}
 
-		return CGRect(x: 0, y: 0, width: width, height: height)
+		return image.cropping(to: rect) ?? image
+	}
+
+	private static func scale(_ image: CGImage, width: Int, height: Int) -> CGImage? {
+		let color = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+		guard let context = CGContext(
+			data: nil,
+			width: width,
+			height: height,
+			bitsPerComponent: 8,
+			bytesPerRow: 0,
+			space: color,
+			bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+		) else { return nil }
+
+		context.interpolationQuality = .high
+		context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+		return context.makeImage()
 	}
 }
