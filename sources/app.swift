@@ -9,7 +9,6 @@ final class App: NSObject, NSApplicationDelegate {
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
 		overlay = Panel()
-		overlay?.onConfirm = { [weak self] in self?.confirm() }
 		hotkey = Hotkey(handler: self)
 	}
 }
