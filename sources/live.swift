@@ -40,7 +40,7 @@ final class Live {
 	}
 }
 
-final class Box: NSObject, SCStreamOutput {
+final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	private struct Meta {
 		let id: CGWindowID
 		let bounds: CGRect
@@ -53,6 +53,8 @@ final class Box: NSObject, SCStreamOutput {
 	private var meta: Meta?
 	private var switching = false
 	private var last: CFAbsoluteTime = 0
+	private var staged: (CGWindowID, NSImage)?
+	private var scheduled = false
 	private var stream: SCStream?
 	private var table: [CGWindowID: SCWindow] = [:]
 	private var active: CGWindowID?
@@ -160,7 +162,7 @@ final class Box: NSObject, SCStreamOutput {
 		let fit = min(cap / w, cap / h, 1)
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
-		config.minimumFrameInterval = CMTime(value: 1, timescale: 12)
+		config.minimumFrameInterval = CMTime(value: 1, timescale: 10)
 		config.queueDepth = 2
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
@@ -199,13 +201,15 @@ final class Box: NSObject, SCStreamOutput {
 		meta = nil
 		switching = false
 		last = 0
+		staged = nil
+		scheduled = false
 		lock.unlock()
 	}
 
 	private func allowpush() -> Bool {
 		let now = CFAbsoluteTimeGetCurrent()
 		lock.lock()
-		if now - last < 1.0 / 12.0 {
+		if now - last < 1.0 / 10.0 {
 			lock.unlock()
 			return false
 		}
@@ -224,11 +228,42 @@ final class Box: NSObject, SCStreamOutput {
 			guard let buffer = sampleBuffer.imageBuffer else { return }
 			let image = CIImage(cvImageBuffer: buffer)
 			guard let cg = context.createCGImage(image, from: image.extent) else { return }
+			guard let cropped = crop(cg, bounds: current.bounds) else { return }
 			let ns = NSImage(
-				cgImage: cg,
-				size: NSSize(width: CGFloat(cg.width) / 2, height: CGFloat(cg.height) / 2)
+				cgImage: cropped,
+				size: NSSize(width: CGFloat(cropped.width) / 2, height: CGFloat(cropped.height) / 2)
 			)
-			push(current.id, ns)
+			stage(current.id, ns)
+		}
+	}
+
+	private func stage(_ id: CGWindowID, _ image: NSImage) {
+		var run = false
+		lock.lock()
+		staged = (id, image)
+		if !scheduled {
+			scheduled = true
+			run = true
+		}
+		lock.unlock()
+
+		guard run else { return }
+		DispatchQueue.main.async { [weak self] in
+			self?.flush()
+		}
+	}
+
+	private func flush() {
+		while true {
+			lock.lock()
+			guard let next = staged else {
+				scheduled = false
+				lock.unlock()
+				return
+			}
+			staged = nil
+			lock.unlock()
+			push(next.0, next.1)
 		}
 	}
 
@@ -246,5 +281,25 @@ final class Box: NSObject, SCStreamOutput {
 		let ratio = bounds.width / max(bounds.height, 1)
 		let value = body * ratio
 		return min(max(value, 140), 320)
+	}
+
+	private func crop(_ image: CGImage, bounds: CGRect) -> CGImage? {
+		let targetw = cardwidth(bounds)
+		let targeth = max(CGFloat(160 - 28), 1)
+		let targetr = targetw / targeth
+		let sw = CGFloat(image.width)
+		let sh = CGFloat(image.height)
+		let sr = sw / sh
+		var rect = CGRect(x: 0, y: 0, width: sw, height: sh)
+		if sr > targetr {
+			let w = floor(sh * targetr)
+			let x = floor((sw - w) / 2)
+			rect = CGRect(x: x, y: 0, width: w, height: sh)
+		} else if sr < targetr {
+			let h = floor(sw / targetr)
+			let y = max(sh - h, 0)
+			rect = CGRect(x: 0, y: y, width: sw, height: h)
+		}
+		return image.cropping(to: rect)
 	}
 }
