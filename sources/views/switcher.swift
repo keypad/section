@@ -20,5 +20,6 @@ struct SwitcherView: View {
 			}
 		}
 		.padding(24)
+		.background(accent.card.opacity(0.18))
 	}
 }
