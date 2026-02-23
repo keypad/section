@@ -11,13 +11,6 @@ struct ThumbnailView: View {
 	private let bar: CGFloat = 28
 	private var previewheight: CGFloat { height - bar }
 
-	private var previewwidth: CGFloat {
-		guard let thumbnail = item.thumbnail else { return width }
-		let h = max(thumbnail.size.height, 1)
-		let aspect = max(thumbnail.size.width / h, 0.1)
-		return min(width, previewheight * aspect)
-	}
-
 	var body: some View {
 		VStack(spacing: 0) {
 			ZStack {
@@ -31,8 +24,9 @@ struct ThumbnailView: View {
 						.clipped()
 					Image(nsImage: thumbnail)
 						.resizable()
-						.scaledToFit()
+						.scaledToFill()
 						.frame(width: width, height: previewheight)
+						.clipped()
 				} else {
 					Color.black.opacity(0.3)
 					Color.white.opacity(0.05)
@@ -59,7 +53,7 @@ struct ThumbnailView: View {
 					.truncationMode(.tail)
 			}
 			.padding(.horizontal, 10)
-			.frame(width: previewwidth, alignment: .leading)
+			.frame(maxWidth: .infinity, alignment: .leading)
 			.frame(height: bar, alignment: .center)
 			.background(Color.black.opacity(0.68))
 		}
