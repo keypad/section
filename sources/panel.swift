@@ -51,14 +51,21 @@ final class Panel {
 
 		let count = state.items.count
 		let columns = min(max(count, 1), 4)
-		let rows = (count + columns - 1) / columns
-		let cardW: CGFloat = 220
 		let cardH: CGFloat = 160
+		let bar: CGFloat = 28
 		let spacing: CGFloat = 12
 		let padding: CGFloat = 24
 
-		let width = CGFloat(columns) * cardW + CGFloat(columns - 1) * spacing + padding * 2
-		let height = CGFloat(rows) * cardH + CGFloat(rows - 1) * spacing + padding * 2
+		let rows = Grid.rows(state.items, count: columns)
+		let width = rows.reduce(CGFloat(0)) { total, row in
+			let cards = row.reduce(CGFloat(0)) { value, item in
+				value + Grid.width(item, height: cardH, bar: bar)
+			}
+			let gaps = CGFloat(max(row.count - 1, 0)) * spacing
+			return max(total, cards + gaps)
+		} + padding * 2
+		let rowcount = rows.count
+		let height = CGFloat(rowcount) * cardH + CGFloat(max(rowcount - 1, 0)) * spacing + padding * 2
 
 		let x = screen.frame.midX - width / 2
 		let y = screen.frame.midY - height / 2
