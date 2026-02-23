@@ -65,7 +65,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	}
 
 	private let push: @Sendable (CGWindowID, NSImage) -> Void
-	private let queue = DispatchQueue(label: "section.live")
+	private let queue = DispatchQueue(label: "section.live", qos: .userInteractive)
 	private let context = CIContext(options: [.cacheIntermediates: false])
 	private let lock = NSLock()
 	private var meta: Meta?
@@ -185,7 +185,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
 		config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
-		config.queueDepth = 1
+		config.queueDepth = 3
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
 		config.shouldBeOpaque = true
