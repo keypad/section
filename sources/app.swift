@@ -21,6 +21,13 @@ final class App: NSObject, NSApplicationDelegate {
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
 		overlay = Panel()
+		overlay?.onspace = { [weak self] in
+			guard let self else { return }
+			open = false
+			session += 1
+			stop()
+			hotkey?.reset()
+		}
 		hotkey = Hotkey(handler: self)
 		live = Live { [weak self] images in
 			guard let self else { return }

@@ -31,6 +31,7 @@ final class Panel {
 	private var hosting: NSHostingView<SwitcherView>?
 	private var state: SwitcherState?
 	private var observer: Any?
+	var onspace: (() -> Void)?
 
 	func setup() {
 		observer = NSWorkspace.shared.notificationCenter.addObserver(
@@ -39,7 +40,10 @@ final class Panel {
 			queue: .main
 		) { [weak self] _ in
 			MainActor.assumeIsolated {
-				self?.hide()
+				guard let self else { return }
+				guard self.window != nil else { return }
+				self.dismiss()
+				self.onspace?()
 			}
 		}
 	}
