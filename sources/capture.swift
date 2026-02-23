@@ -3,7 +3,7 @@ import ScreenCaptureKit
 
 enum Capture {
 	static func thumbnails(for items: [WindowItem], completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
-		let ids = Set(items.map { $0.id })
+		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
 		Task {
 			var results: [CGWindowID: NSImage] = [:]
 
@@ -15,21 +15,31 @@ enum Capture {
 
 			for window in windows {
 				let wid = window.windowID
-				guard ids.contains(wid) else { continue }
+				guard let item = lookup[wid] else { continue }
 
 				let filter = SCContentFilter(desktopIndependentWindow: window)
 				let config = SCStreamConfiguration()
-				config.width = 640
-				config.height = 400
-				config.scalesToFit = true
+
+				let scale: CGFloat = 2
+				let maxDim: CGFloat = 400
+				let w = item.bounds.width
+				let h = item.bounds.height
+				let ratio = min(maxDim / w, maxDim / h, 1)
+
+				config.width = Int(w * ratio * scale)
+				config.height = Int(h * ratio * scale)
+				config.scalesToFit = false
 				config.showsCursor = false
 
 				if let image = try? await SCScreenshotManager.captureImage(
 					contentFilter: filter,
 					configuration: config
 				) {
-					let nsImage = NSImage(cgImage: image, size: NSSize(width: 320, height: 200))
-					results[wid] = nsImage
+					let size = NSSize(
+						width: CGFloat(config.width) / scale,
+						height: CGFloat(config.height) / scale
+					)
+					results[wid] = NSImage(cgImage: image, size: size)
 				}
 			}
 
