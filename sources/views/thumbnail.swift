@@ -48,7 +48,7 @@ struct ThumbnailView: View {
 			.padding(.horizontal, 10)
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.frame(height: bar, alignment: .center)
-			.background(Color.black.opacity(0.68))
+			.background(Color.black)
 		}
 		.frame(width: width, height: height)
 		.compositingGroup()

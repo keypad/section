@@ -143,6 +143,8 @@ enum Capture {
 		) else { return nil }
 
 		context.interpolationQuality = .high
+		context.setFillColor(CGColor(gray: 0.06, alpha: 1))
+		context.fill(CGRect(x: 0, y: 0, width: outWidth, height: outHeight))
 		context.draw(image, in: CGRect(x: 0, y: 0, width: outWidth, height: outHeight))
 		return context.makeImage()
 	}
