@@ -28,7 +28,7 @@ enum Windows {
 		let frame = screen.frame
 		let selfPid = ProcessInfo.processInfo.processIdentifier
 		var items: [WindowItem] = []
-		var seen = Set<pid_t>()
+		var rects: [pid_t: [CGRect]] = [:]
 
 		for entry in info {
 			guard
@@ -49,11 +49,20 @@ enum Windows {
 
 			guard frame.contains(center) else { continue }
 
-			let name = entry[kCGWindowName as String] as? String ?? owner
-			let hasTitle = entry[kCGWindowName as String] as? String != nil
+			let dominated = rects[pid, default: []].contains { existing in
+				let overlap = existing.intersection(cgRect)
+				guard !overlap.isNull else { return false }
+				let area = overlap.width * overlap.height
+				let smaller = min(
+					existing.width * existing.height,
+					cgRect.width * cgRect.height
+				)
+				return area > smaller * 0.5
+			}
+			if dominated { continue }
+			rects[pid, default: []].append(cgRect)
 
-			if !hasTitle && seen.contains(pid) { continue }
-			seen.insert(pid)
+			let name = entry[kCGWindowName as String] as? String ?? owner
 
 			items.append(WindowItem(
 				id: wid,
