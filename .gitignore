@@ -1,7 +1,8 @@
-.build
-.swiftpm
 Package.resolved
 CLAUDE.md
 AGENTS.md
-.env
+.swiftpm
+.build
 watch
+.env
+dist

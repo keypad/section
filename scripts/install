@@ -1,0 +1,36 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
+
+version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' sources/info.plist)"
+app="$root/dist/section.app"
+contents="$app/Contents"
+macos="$contents/MacOS"
+resources="$contents/Resources"
+stage="$root/dist/stage"
+dmg="$root/dist/section-$version.dmg"
+volume="Section $version"
+
+swift build -c release
+
+rm -rf "$app" "$stage" "$dmg"
+mkdir -p "$macos" "$resources" "$stage"
+cp .build/release/section "$macos/section"
+cp sources/info.plist "$contents/Info.plist"
+printf 'APPL????' > "$contents/PkgInfo"
+chmod +x "$macos/section"
+
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+	codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$app"
+else
+	codesign --force --deep --sign - "$app"
+fi
+
+cp -R "$app" "$stage/"
+ln -s /Applications "$stage/Applications"
+hdiutil create -volname "$volume" -srcfolder "$stage" -ov -format UDZO "$dmg" >/dev/null
+rm -rf "$stage"
+
+echo "$dmg"
