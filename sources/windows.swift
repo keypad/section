@@ -28,6 +28,7 @@ enum Windows {
 		let frame = screen.frame
 		let selfPid = ProcessInfo.processInfo.processIdentifier
 		var items: [WindowItem] = []
+		var seen = Set<pid_t>()
 
 		for entry in info {
 			guard
@@ -49,6 +50,10 @@ enum Windows {
 			guard frame.contains(center) else { continue }
 
 			let name = entry[kCGWindowName as String] as? String ?? owner
+			let hasTitle = entry[kCGWindowName as String] as? String != nil
+
+			if !hasTitle && seen.contains(pid) { continue }
+			seen.insert(pid)
 
 			items.append(WindowItem(
 				id: wid,
