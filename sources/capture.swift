@@ -45,7 +45,8 @@ enum Capture {
 	}
 
 	private static func output(_ image: CGImage) -> CGImage? {
-		guard let first = trim(image) else { return nil }
+		let base = opaque(image) ?? image
+		guard let first = trim(base) else { return nil }
 		return scale(first, maxWidth: 400, maxHeight: 320)
 	}
 
@@ -67,6 +68,59 @@ enum Capture {
 			height: height - top - bottom
 		)
 
+		return image.cropping(to: rect) ?? image
+	}
+
+	private static func opaque(_ image: CGImage) -> CGImage? {
+		guard let raw = image.dataProvider?.data else { return nil }
+		guard let data = CFDataGetBytePtr(raw) else { return nil }
+
+		let width = image.width
+		let height = image.height
+		let row = image.bytesPerRow
+		let bytes = image.bitsPerPixel / 8
+		guard bytes >= 4 else { return nil }
+
+		let alpha: Int
+		switch image.alphaInfo {
+		case .premultipliedFirst, .first, .noneSkipFirst:
+			alpha = 0
+		case .premultipliedLast, .last, .noneSkipLast:
+			alpha = bytes - 1
+		default:
+			return nil
+		}
+
+		let step = 2
+		let mark: UInt8 = 2
+		var left = width
+		var right = -1
+		var top = height
+		var bottom = -1
+
+		var y = 0
+		while y < height {
+			var x = 0
+			while x < width {
+				let index = y * row + x * bytes + alpha
+				if data[index] > mark {
+					if x < left { left = x }
+					if x > right { right = x }
+					if y < top { top = y }
+					if y > bottom { bottom = y }
+				}
+				x += step
+			}
+			y += step
+		}
+
+		guard right >= left, bottom >= top else { return nil }
+		let pad = 1
+		let x = max(left - pad, 0)
+		let y0 = max(top - pad, 0)
+		let w = min(right - left + 1 + pad * 2, width - x)
+		let h = min(bottom - top + 1 + pad * 2, height - y0)
+		let rect = CGRect(x: x, y: y0, width: w, height: h)
 		return image.cropping(to: rect) ?? image
 	}
 
