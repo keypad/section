@@ -13,10 +13,19 @@ final class Live {
 	}
 
 	func start(item: WindowItem?) {
-		stop()
-		guard let item else { return }
+		guard let item else {
+			stop()
+			return
+		}
+		if box == nil {
+			box = Box { [weak self] id, image in
+				Task { @MainActor in
+					self?.apply([id: image])
+				}
+			}
+		}
 		Task { @MainActor [weak self] in
-			await self?.open(item)
+			await self?.box?.set(item)
 		}
 	}
 
@@ -27,35 +36,33 @@ final class Live {
 			await box.stop()
 		}
 	}
-
-	private func open(_ item: WindowItem) async {
-		let box = Box(item: item) { [weak self] id, image in
-			Task { @MainActor in
-				self?.apply([id: image])
-			}
-		}
-		self.box = box
-		await box.start()
-	}
 }
 
 final class Box: NSObject, SCStreamOutput {
-	private let item: WindowItem
+	private struct Meta {
+		let id: CGWindowID
+		let bounds: CGRect
+	}
+
 	private let push: @Sendable (CGWindowID, NSImage) -> Void
-	private let queue: DispatchQueue
-	private let context: CIContext
+	private let queue = DispatchQueue(label: "section.live")
+	private let context = CIContext()
+	private let lock = NSLock()
+	private var meta: Meta?
 	private var stream: SCStream?
 
-	init(item: WindowItem, push: @escaping @Sendable (CGWindowID, NSImage) -> Void) {
-		self.item = item
+	init(push: @escaping @Sendable (CGWindowID, NSImage) -> Void) {
 		self.push = push
-		self.queue = DispatchQueue(label: "section.live.\(item.id)")
-		self.context = CIContext()
 	}
 
 	@MainActor
-	func start() async {
-		await open()
+	func set(_ item: WindowItem) async {
+		setmeta(Meta(id: item.id, bounds: item.bounds))
+		if stream == nil {
+			await open(item.id, bounds: item.bounds)
+			return
+		}
+		await update(item.id, bounds: item.bounds)
 	}
 
 	@MainActor
@@ -66,49 +73,103 @@ final class Box: NSObject, SCStreamOutput {
 	}
 
 	@MainActor
-	private func open() async {
+	private func open(_ id: CGWindowID, bounds: CGRect) async {
 		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
 		guard let windows = content?.windows else { return }
-		guard let window = windows.first(where: { $0.windowID == item.id }) else { return }
+		guard let window = windows.first(where: { $0.windowID == id }) else { return }
 
 		let filter = SCContentFilter(desktopIndependentWindow: window)
-		let config = SCStreamConfiguration()
-
-		let cap: CGFloat = 480
-		let w = item.bounds.width
-		let h = item.bounds.height
-		let fit = min(cap / w, cap / h, 1)
-
-		config.width = Int(w * fit * 2)
-		config.height = Int(h * fit * 2)
-		config.minimumFrameInterval = CMTime(value: 1, timescale: 10)
-		config.queueDepth = 2
-		config.showsCursor = false
-		config.ignoreShadowsSingleWindow = true
-		config.shouldBeOpaque = true
-
+		let config = config(bounds)
 		let stream = SCStream(filter: filter, configuration: config, delegate: nil)
 		self.stream = stream
 		try? stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
 		try? await stream.startCapture()
 	}
 
+	@MainActor
+	private func update(_ id: CGWindowID, bounds: CGRect) async {
+		guard let stream else {
+			await open(id, bounds: bounds)
+			return
+		}
+		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+		guard let windows = content?.windows else { return }
+		guard let window = windows.first(where: { $0.windowID == id }) else { return }
+		let filter = SCContentFilter(desktopIndependentWindow: window)
+		let next = config(bounds)
+		do {
+			try await stream.updateConfiguration(next)
+			try await stream.updateContentFilter(filter)
+		} catch {
+			try? await stream.stopCapture()
+			self.stream = nil
+			await open(id, bounds: bounds)
+		}
+	}
+
+	private func config(_ bounds: CGRect) -> SCStreamConfiguration {
+		let config = SCStreamConfiguration()
+		let cap: CGFloat = 480
+		let w = bounds.width
+		let h = bounds.height
+		let fit = min(cap / w, cap / h, 1)
+		config.width = Int(w * fit * 2)
+		config.height = Int(h * fit * 2)
+		config.minimumFrameInterval = CMTime(value: 1, timescale: 12)
+		config.queueDepth = 2
+		config.showsCursor = false
+		config.ignoreShadowsSingleWindow = true
+		config.shouldBeOpaque = true
+		return config
+	}
+
+	private func setmeta(_ value: Meta) {
+		lock.lock()
+		meta = value
+		lock.unlock()
+	}
+
+	private func getmeta() -> Meta? {
+		lock.lock()
+		let value = meta
+		lock.unlock()
+		return value
+	}
+
 	func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
 		guard outputType == .screen else { return }
+		guard complete(sampleBuffer) else { return }
+		guard let current = getmeta() else { return }
 		guard let buffer = sampleBuffer.imageBuffer else { return }
 		let image = CIImage(cvImageBuffer: buffer)
-		let rect = image.extent
-		guard let cg = context.createCGImage(image, from: rect) else { return }
+		guard let cg = context.createCGImage(image, from: image.extent) else { return }
 
 		let body: CGFloat = 160 - 28
-		let width = max(Int(Grid.width(item, height: 160, bar: 28) * 2), 1)
+		let width = max(Int(cardwidth(current.bounds) * 2), 1)
 		let height = max(Int(body * 2), 1)
 		guard let out = fit(cg, width: width, height: height) else { return }
+
 		let ns = NSImage(
 			cgImage: out,
 			size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
 		)
-		push(item.id, ns)
+		push(current.id, ns)
+	}
+
+	private func complete(_ sampleBuffer: CMSampleBuffer) -> Bool {
+		guard let array = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+			let attachments = array.first,
+			let raw = attachments[.status] as? Int,
+			let status = SCFrameStatus(rawValue: raw)
+		else { return false }
+		return status == .complete
+	}
+
+	private func cardwidth(_ bounds: CGRect) -> CGFloat {
+		let body = max(CGFloat(160 - 28), 1)
+		let ratio = bounds.width / max(bounds.height, 1)
+		let value = body * ratio
+		return min(max(value, 140), 320)
 	}
 
 	private func fit(_ image: CGImage, width: Int, height: Int) -> CGImage? {
