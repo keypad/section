@@ -69,8 +69,7 @@ struct ThumbnailView: View {
 				lineWidth: selected ? 2 : 1
 			)
 		)
-		.shadow(color: selected ? accent.opacity(0.3) : .clear, radius: 12)
-		.animation(.easeInOut(duration: 0.1), value: selected)
+		.shadow(color: selected ? accent.opacity(0.12) : .clear, radius: 4)
 	}
 
 	private static func tone(_ image: NSImage) -> Color {
