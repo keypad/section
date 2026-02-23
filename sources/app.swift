@@ -10,7 +10,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var video = false
 	private var permonitor = true
 	private var retunework: DispatchWorkItem?
-	private var refreshwork: DispatchWorkItem?
+	private var session = 0
+	private var refreshid = 0
 	private var tray: NSStatusItem?
 	private var pictureitem: NSMenuItem?
 	private var videoitem: NSMenuItem?
@@ -22,7 +23,12 @@ final class App: NSObject, NSApplicationDelegate {
 		overlay = Panel()
 		hotkey = Hotkey(handler: self)
 		live = Live { [weak self] images in
-			self?.state.apply(images, animated: false)
+			guard let self else { return }
+			guard open, video else { return }
+			guard let selected = state.selected?.id else { return }
+			let current = images.filter { $0.key == selected }
+			guard !current.isEmpty else { return }
+			state.apply(current, animated: false)
 		}
 		setup()
 	}
@@ -119,11 +125,11 @@ extension App: HotkeyHandler {
 		if items.isEmpty { return }
 
 		state.reset(with: items)
+		session += 1
+		refreshid = 0
 		overlay?.show(on: screen, state: state)
 		open = true
-		Capture.thumbnails(for: items, focus: state.index) { [weak self] results in
-			self?.state.apply(results, animated: true)
-		}
+		applysnapshot(items: items, animated: true)
 		if video { start() }
 	}
 
@@ -142,6 +148,7 @@ extension App: HotkeyHandler {
 		overlay?.hide()
 		hotkey?.reset()
 		open = false
+		session += 1
 		stop()
 		if let item { Focus.activate(item) }
 	}
@@ -150,6 +157,7 @@ extension App: HotkeyHandler {
 		overlay?.hide()
 		hotkey?.reset()
 		open = false
+		session += 1
 		stop()
 	}
 
@@ -167,8 +175,6 @@ extension App: HotkeyHandler {
 	private func stop() {
 		retunework?.cancel()
 		retunework = nil
-		refreshwork?.cancel()
-		refreshwork = nil
 		live?.stop()
 	}
 
@@ -183,24 +189,12 @@ extension App: HotkeyHandler {
 
 	private func retune() {
 		live?.start(item: state.selected)
-		queuerefresh()
-	}
-
-	private func queuerefresh() {
-		refreshwork?.cancel()
-		let work = DispatchWorkItem { [weak self] in
-			self?.refresh()
-		}
-		refreshwork = work
-		DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
 	}
 
 	private func refresh() {
 		let items = state.items
 		guard !items.isEmpty else { return }
-		Capture.thumbnails(for: items, focus: state.index) { [weak self] results in
-			self?.state.apply(results, animated: false)
-		}
+		applysnapshot(items: items, animated: false)
 	}
 
 	private func windows() -> [WindowItem] {
@@ -208,5 +202,19 @@ extension App: HotkeyHandler {
 			return Windows.list(on: Screens.current())
 		}
 		return Windows.list(on: nil)
+	}
+
+	private func applysnapshot(items: [WindowItem], animated: Bool) {
+		let ticket = session
+		refreshid += 1
+		let refresh = refreshid
+		let focus = state.index
+		Capture.thumbnails(for: items, focus: focus) { [weak self] results in
+			guard let self else { return }
+			guard open else { return }
+			guard ticket == session else { return }
+			guard refresh == refreshid else { return }
+			state.apply(results, animated: animated)
+		}
 	}
 }
