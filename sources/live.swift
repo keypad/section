@@ -85,6 +85,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 
 	@MainActor
 	func set(_ item: WindowItem) async {
+		drop()
 		if active == item.id {
 			setmeta(Meta(id: item.id, bounds: item.bounds))
 			return
@@ -94,7 +95,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 			if ok {
 				active = item.id
 				setmeta(Meta(id: item.id, bounds: item.bounds))
-				setskip(2)
+				setskip(3)
 			}
 			return
 		}
@@ -104,7 +105,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		if ok {
 			active = item.id
 			setmeta(Meta(id: item.id, bounds: item.bounds))
-			setskip(2)
+			setskip(3)
 		}
 	}
 
@@ -231,6 +232,12 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	private func setskip(_ value: Int) {
 		lock.lock()
 		skip = value
+		lock.unlock()
+	}
+
+	private func drop() {
+		lock.lock()
+		staged = nil
 		lock.unlock()
 	}
 
