@@ -22,10 +22,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private func setup() {
 		let tray = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 		if let button = tray.button {
-			button.image = NSImage(
-				systemSymbolName: "rectangle.on.rectangle",
-				accessibilityDescription: "section"
-			)
+			button.image = Icon.image()
+			button.setAccessibilityTitle("Section")
 		}
 
 		let menu = NSMenu()
