@@ -9,6 +9,7 @@ final class App: NSObject, NSApplicationDelegate {
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
 		overlay = Panel()
+		overlay?.onConfirm = { [weak self] in self?.confirm() }
 		hotkey = Hotkey(handler: self)
 		print("section ready")
 	}
@@ -21,11 +22,6 @@ extension App: HotkeyHandler {
 		print("show: \(items.count) windows [\(items.map { "\($0.owner):\($0.name)" }.joined(separator: ", "))]")
 
 		if items.isEmpty { return }
-
-		if items.count == 1 {
-			Focus.activate(items[0])
-			return
-		}
 
 		state.reset(with: items)
 		overlay?.show(on: screen, state: state)

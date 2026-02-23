@@ -31,6 +31,7 @@ final class Panel {
 	private var hosting: NSHostingView<SwitcherView>?
 	private var state: SwitcherState?
 	private var observer: Any?
+	var onConfirm: (() -> Void)?
 
 	func setup() {
 		observer = NSWorkspace.shared.notificationCenter.addObserver(
@@ -74,7 +75,7 @@ final class Panel {
 		blur.layer?.cornerRadius = 16
 		blur.layer?.masksToBounds = true
 
-		let view = SwitcherView(state: state)
+		let view = SwitcherView(state: state, onConfirm: { [weak self] in self?.onConfirm?() })
 		let hostView = NSHostingView(rootView: view)
 		hosting = hostView
 
