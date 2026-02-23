@@ -50,15 +50,18 @@ enum Capture {
 	}
 
 	private static func crop(_ image: CGImage) -> CGImage {
-		let inset = 4
+		let left = 4
+		let top = 4
+		let bottom = 4
+		let right = 16
 		let width = image.width
 		let height = image.height
-		guard width > inset * 2, height > inset * 2 else { return image }
+		guard width > left + right, height > top + bottom else { return image }
 		let rect = CGRect(
-			x: inset,
-			y: inset,
-			width: width - inset * 2,
-			height: height - inset * 2
+			x: left,
+			y: bottom,
+			width: width - left - right,
+			height: height - top - bottom
 		)
 		return image.cropping(to: rect) ?? image
 	}
