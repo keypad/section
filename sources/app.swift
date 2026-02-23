@@ -114,10 +114,12 @@ extension App: HotkeyHandler {
 
 	func next() {
 		state.next()
+		if video { retune() }
 	}
 
 	func previous() {
 		state.previous()
+		if video { retune() }
 	}
 
 	func confirm() {
@@ -144,10 +146,24 @@ extension App: HotkeyHandler {
 	}
 
 	private func start() {
-		live?.start(items: state.items)
+		live?.start(item: state.selected)
+		refresh()
 	}
 
 	private func stop() {
 		live?.stop()
+	}
+
+	private func retune() {
+		live?.start(item: state.selected)
+		refresh()
+	}
+
+	private func refresh() {
+		let items = state.items
+		guard !items.isEmpty else { return }
+		Capture.thumbnails(for: items, focus: state.index) { [weak self] results in
+			self?.state.apply(results, animated: false)
+		}
 	}
 }
