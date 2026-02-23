@@ -184,7 +184,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
 		config.minimumFrameInterval = CMTime(value: 1, timescale: 6)
-		config.queueDepth = 2
+		config.queueDepth = 1
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
 		config.shouldBeOpaque = true
