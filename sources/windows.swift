@@ -49,20 +49,26 @@ enum Windows {
 
 			guard frame.contains(center) else { continue }
 
-			let dominated = rects[pid, default: []].contains { existing in
-				let overlap = existing.intersection(cgRect)
-				guard !overlap.isNull else { return false }
-				let area = overlap.width * overlap.height
-				let smaller = min(
-					existing.width * existing.height,
-					cgRect.width * cgRect.height
-				)
-				return area > smaller * 0.5
-			}
-			if dominated { continue }
-			rects[pid, default: []].append(cgRect)
+			let raw = (entry[kCGWindowName as String] as? String)?
+				.trimmingCharacters(in: .whitespacesAndNewlines)
+			let titled = !(raw?.isEmpty ?? true)
 
-			let name = entry[kCGWindowName as String] as? String ?? owner
+			if !titled {
+				let dominated = rects[pid, default: []].contains { existing in
+					let overlap = existing.intersection(cgRect)
+					guard !overlap.isNull else { return false }
+					let area = overlap.width * overlap.height
+					let smaller = min(
+						existing.width * existing.height,
+						cgRect.width * cgRect.height
+					)
+					return area > smaller * 0.85
+				}
+				if dominated { continue }
+			}
+
+			rects[pid, default: []].append(cgRect)
+			let name = titled ? raw! : owner
 
 			items.append(WindowItem(
 				id: wid,
