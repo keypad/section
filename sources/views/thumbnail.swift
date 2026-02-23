@@ -9,6 +9,14 @@ struct ThumbnailView: View {
 	private let width: CGFloat = 220
 	private let height: CGFloat = 160
 	private let bar: CGFloat = 28
+	private var previewheight: CGFloat { height - bar }
+
+	private var previewwidth: CGFloat {
+		guard let thumbnail = item.thumbnail else { return width }
+		let h = max(thumbnail.size.height, 1)
+		let aspect = max(thumbnail.size.width / h, 0.1)
+		return min(width, previewheight * aspect)
+	}
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -19,12 +27,12 @@ struct ThumbnailView: View {
 						.scaledToFill()
 						.blur(radius: 10)
 						.opacity(0.35)
-						.frame(width: width, height: height - bar)
+						.frame(width: width, height: previewheight)
 						.clipped()
 					Image(nsImage: thumbnail)
 						.resizable()
 						.scaledToFit()
-						.frame(width: width, height: height - bar)
+						.frame(width: width, height: previewheight)
 				} else {
 					Color.black.opacity(0.3)
 					Color.white.opacity(0.05)
@@ -36,7 +44,7 @@ struct ThumbnailView: View {
 					}
 				}
 			}
-			.frame(width: width, height: height - bar)
+			.frame(width: width, height: previewheight)
 
 			HStack(spacing: 6) {
 				if let icon = item.icon {
@@ -51,7 +59,7 @@ struct ThumbnailView: View {
 					.truncationMode(.tail)
 			}
 			.padding(.horizontal, 10)
-			.frame(maxWidth: .infinity, alignment: .leading)
+			.frame(width: previewwidth, alignment: .leading)
 			.frame(height: bar, alignment: .center)
 			.background(Color.black.opacity(0.68))
 		}
