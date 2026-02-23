@@ -4,3 +4,5 @@ Package.resolved
 CLAUDE.md
 AGENTS.md
 .env
+watch
+watch.local
