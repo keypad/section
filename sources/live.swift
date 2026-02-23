@@ -255,7 +255,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	private func allowpush() -> Bool {
 		let now = CFAbsoluteTimeGetCurrent()
 		lock.lock()
-		if now - last < 1.0 / 6.0 {
+		if now - last < 1.0 / 30.0 {
 			lock.unlock()
 			return false
 		}
