@@ -46,18 +46,17 @@ enum Capture {
 
 	private static func output(_ image: CGImage) -> CGImage? {
 		guard let first = trim(image) else { return nil }
-		let second = solid(first) ?? first
-		return scale(second, maxWidth: 400, maxHeight: 320)
+		return scale(first, maxWidth: 400, maxHeight: 320)
 	}
 
 	private static func trim(_ image: CGImage) -> CGImage? {
 		let width = image.width
 		let height = image.height
 
-		let left = min(max(width / 220, 2), 6)
-		let top = 1
-		let bottom = min(max(height / 220, 2), 6)
-		let right = min(max(width / 45, 10), 20)
+		let left = 0
+		let top = 0
+		let bottom = 0
+		let right = min(max(width / 60, 6), 14)
 
 		guard width > left + right, height > top + bottom else { return image }
 
@@ -68,62 +67,6 @@ enum Capture {
 			height: height - top - bottom
 		)
 
-		return image.cropping(to: rect) ?? image
-	}
-
-	private static func solid(_ image: CGImage) -> CGImage? {
-		guard let raw = image.dataProvider?.data else { return nil }
-		guard let data = CFDataGetBytePtr(raw) else { return nil }
-
-		let width = image.width
-		let height = image.height
-		let row = image.bytesPerRow
-		let bits = image.bitsPerPixel / 8
-		guard bits >= 4 else { return nil }
-
-		let alpha: Int
-		switch image.alphaInfo {
-		case .premultipliedFirst, .first, .noneSkipFirst:
-			alpha = 0
-		case .premultipliedLast, .last, .noneSkipLast:
-			alpha = bits - 1
-		default:
-			return nil
-		}
-
-		let step = 2
-		let mark: UInt8 = 8
-		var left = width
-		var right = -1
-		var top = height
-		var bottom = -1
-
-		var y = 0
-		while y < height {
-			var x = 0
-			while x < width {
-				let index = y * row + x * bits + alpha
-				if data[index] > mark {
-					if x < left { left = x }
-					if x > right { right = x }
-					if y < top { top = y }
-					if y > bottom { bottom = y }
-				}
-				x += step
-			}
-			y += step
-		}
-
-		guard right >= left, bottom >= top else { return nil }
-
-		let padx = 2
-		let topPad = 12
-		let bottomPad = 2
-		let x = max(left - padx, 0)
-		let y0 = max(top - topPad, 0)
-		let w = min(right - left + 1 + padx * 2, width - x)
-		let h = min(bottom - top + 1 + topPad + bottomPad, height - y0)
-		let rect = CGRect(x: x, y: y0, width: w, height: h)
 		return image.cropping(to: rect) ?? image
 	}
 
