@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SwitcherView: View {
 	@ObservedObject var state: SwitcherState
+	let theme: Theme
 
 	private var rows: [[WindowItem]] {
 		Grid.rows(state.items, count: 4)
@@ -12,7 +13,7 @@ struct SwitcherView: View {
 			ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
 				HStack(spacing: 12) {
 					ForEach(row, id: \.id) { item in
-						ThumbnailView(item: item, selected: item.id == state.selected?.id)
+						ThumbnailView(item: item, selected: item.id == state.selected?.id, theme: theme)
 					}
 				}
 			}

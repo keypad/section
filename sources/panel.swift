@@ -48,14 +48,14 @@ final class Panel {
 		}
 	}
 
-	func show(on screen: NSScreen, state: SwitcherState) {
+	func show(on screen: NSScreen, state: SwitcherState, theme: Theme) {
 		if observer == nil { setup() }
 		self.state = state
 		dismiss()
 
 		let count = state.items.count
 		let columns = min(max(count, 1), 4)
-		let cardH: CGFloat = 160
+		let cardH: CGFloat = theme == .minimal ? 44 : 160
 		let bar: CGFloat = 28
 		let spacing: CGFloat = 12
 		let padding: CGFloat = 24
@@ -63,7 +63,8 @@ final class Panel {
 		let rows = Grid.rows(state.items, count: columns)
 		let width = rows.reduce(CGFloat(0)) { total, row in
 			let cards = row.reduce(CGFloat(0)) { value, item in
-				value + Grid.width(item, height: cardH, bar: bar)
+				if theme == .minimal { return value + 220 }
+				return value + Grid.width(item, height: cardH, bar: bar)
 			}
 			let gaps = CGFloat(max(row.count - 1, 0)) * spacing
 			return max(total, cards + gaps)
@@ -87,7 +88,7 @@ final class Panel {
 		blur.state = .active
 		blur.blendingMode = .behindWindow
 
-		let view = SwitcherView(state: state)
+		let view = SwitcherView(state: state, theme: theme)
 		let hostView = NSHostingView(rootView: view)
 		hosting = hostView
 
