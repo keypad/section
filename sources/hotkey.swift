@@ -18,6 +18,8 @@ final class Hotkey: @unchecked Sendable {
 	private weak var handler: (any HotkeyHandler)?
 	private var primed = false
 	private var showing = false
+	private var option = false
+	private var pending: DispatchWorkItem?
 
 	@MainActor
 	init(handler: any HotkeyHandler) {
@@ -28,6 +30,9 @@ final class Hotkey: @unchecked Sendable {
 	func reset() {
 		primed = false
 		showing = false
+		option = false
+		pending?.cancel()
+		pending = nil
 	}
 
 	@MainActor
@@ -76,7 +81,17 @@ final class Hotkey: @unchecked Sendable {
 		let optionDown = flags.contains(.maskAlternate)
 
 		if type == .flagsChanged {
+			option = optionDown
 			if !optionDown {
+				pending?.cancel()
+				pending = nil
+				if primed && !showing {
+					primed = false
+					DispatchQueue.main.async { [weak self] in
+						self?.handler?.quickswitch()
+					}
+					return Unmanaged.passRetained(event)
+				}
 				primed = false
 				if showing {
 					showing = false
@@ -92,16 +107,26 @@ final class Hotkey: @unchecked Sendable {
 			if keycode == Int64(kVK_Tab) {
 				if !primed {
 					primed = true
-					DispatchQueue.main.async { [weak self] in
-						self?.handler?.quickswitch()
+					let task = DispatchWorkItem { [weak self] in
+						guard let this = self else { return }
+						guard this.primed, this.option, !this.showing else { return }
+						this.showing = true
+						DispatchQueue.main.async { [weak this] in
+							this?.handler?.show()
+						}
 					}
+					pending = task
+					DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: task)
 					return nil
 				}
 
 				if !showing {
+					pending?.cancel()
+					pending = nil
 					showing = true
 					DispatchQueue.main.async { [weak self] in
 						self?.handler?.show()
+						self?.handler?.next()
 					}
 				} else {
 					let shift = flags.contains(.maskShift)
@@ -119,6 +144,8 @@ final class Hotkey: @unchecked Sendable {
 			if keycode == Int64(kVK_Escape) && showing {
 				showing = false
 				primed = false
+				pending?.cancel()
+				pending = nil
 				DispatchQueue.main.async { [weak self] in
 					self?.handler?.cancel()
 				}
@@ -129,6 +156,8 @@ final class Hotkey: @unchecked Sendable {
 		if type == .keyDown && !optionDown && showing {
 			showing = false
 			primed = false
+			pending?.cancel()
+			pending = nil
 			DispatchQueue.main.async { [weak self] in
 				self?.handler?.cancel()
 			}
