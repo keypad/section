@@ -22,7 +22,7 @@ extension App: HotkeyHandler {
 
 		state.reset(with: items)
 		overlay?.show(on: screen, state: state)
-		Capture.thumbnails(for: items) { [weak self] results in
+		Capture.thumbnails(for: items, focus: state.index) { [weak self] results in
 			self?.state.apply(results)
 		}
 	}

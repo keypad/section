@@ -2,140 +2,126 @@ import AppKit
 import ScreenCaptureKit
 
 enum Capture {
-	static func thumbnails(for items: [WindowItem], completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
-		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-		Task {
-			var results: [CGWindowID: NSImage] = [:]
+	private actor Vault {
+		var cache: [CGWindowID: NSImage] = [:]
+		var order: [CGWindowID] = []
+		let limit = 80
 
-			let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-			guard let windows = content?.windows else {
-				await MainActor.run { completion(results) }
-				return
+		func ready(ids: Set<CGWindowID>) -> [CGWindowID: NSImage] {
+			var result: [CGWindowID: NSImage] = [:]
+			for id in ids {
+				if let image = cache[id] { result[id] = image }
+			}
+			return result
+		}
+
+		func seen(_ id: CGWindowID) -> Bool {
+			cache[id] != nil
+		}
+
+		func store(id: CGWindowID, image: NSImage) {
+			cache[id] = image
+			order.removeAll { $0 == id }
+			order.append(id)
+			if order.count <= limit { return }
+			let drop = order.count - limit
+			for _ in 0..<drop {
+				let old = order.removeFirst()
+				cache.removeValue(forKey: old)
+			}
+		}
+	}
+
+	private static let vault = Vault()
+
+	static func thumbnails(for items: [WindowItem], focus: Int, completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
+		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+		let priority = rank(items, focus: focus)
+		Task {
+			let cached = await vault.ready(ids: Set(priority))
+			if !cached.isEmpty {
+				await MainActor.run { completion(cached) }
 			}
 
-			for window in windows {
-				let wid = window.windowID
-				guard let item = lookup[wid] else { continue }
+			let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+			guard let windows = content?.windows else { return }
+			let table = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
+
+			for (index, id) in priority.enumerated() {
+				guard let window = table[id] else { continue }
+				guard let item = lookup[id] else { continue }
+				let urgent = index < 3
+				let seen = await vault.seen(id)
+				if seen && !urgent { continue }
 
 				let filter = SCContentFilter(desktopIndependentWindow: window)
 				let config = SCStreamConfiguration()
 
-				let maxDim: CGFloat = 720
+				let max: CGFloat = 560
 				let w = item.bounds.width
 				let h = item.bounds.height
-				let fit = min(maxDim / w, maxDim / h, 1)
+				let fit = min(max / w, max / h, 1)
 
 				config.width = Int(w * fit * 2)
 				config.height = Int(h * fit * 2)
 				config.scalesToFit = false
+				config.preservesAspectRatio = true
 				config.showsCursor = false
 				config.ignoreShadowsSingleWindow = true
+				config.shouldBeOpaque = true
 
 				if let image = try? await SCScreenshotManager.captureImage(
 					contentFilter: filter,
 					configuration: config
 				), let output = output(image) {
-					results[wid] = NSImage(cgImage: output, size: NSSize(width: 200, height: 160))
+					let result = NSImage(cgImage: output, size: NSSize(width: 200, height: 160))
+					await vault.store(id: id, image: result)
+					await MainActor.run { completion([id: result]) }
 				}
 			}
-
-			let captured = results
-			await MainActor.run { completion(captured) }
 		}
 	}
 
+	private static func rank(_ items: [WindowItem], focus: Int) -> [CGWindowID] {
+		guard !items.isEmpty else { return [] }
+		var list: [CGWindowID] = []
+		let start = max(min(focus, items.count - 1), 0)
+		list.append(items[start].id)
+		for step in 1..<items.count {
+			let right = start + step
+			if right < items.count { list.append(items[right].id) }
+			let left = start - step
+			if left >= 0 { list.append(items[left].id) }
+		}
+		return list
+	}
+
 	private static func output(_ image: CGImage) -> CGImage? {
-		let base = opaque(image) ?? image
-		guard let first = trim(base) else { return nil }
-		return scale(first, maxWidth: 400, maxHeight: 320)
+		guard let first = trim(image) else { return nil }
+		return scale(first, maxw: 400, maxh: 320)
 	}
 
 	private static func trim(_ image: CGImage) -> CGImage? {
 		let width = image.width
 		let height = image.height
-
-		let left = 0
-		let top = 0
-		let bottom = 0
 		let right = min(max(width / 60, 6), 14)
-
-		guard width > left + right, height > top + bottom else { return image }
-
-		let rect = CGRect(
-			x: left,
-			y: bottom,
-			width: width - left - right,
-			height: height - top - bottom
-		)
-
+		guard width > right, height > 0 else { return image }
+		let rect = CGRect(x: 0, y: 0, width: width - right, height: height)
 		return image.cropping(to: rect) ?? image
 	}
 
-	private static func opaque(_ image: CGImage) -> CGImage? {
-		guard let raw = image.dataProvider?.data else { return nil }
-		guard let data = CFDataGetBytePtr(raw) else { return nil }
-
+	private static func scale(_ image: CGImage, maxw: Int, maxh: Int) -> CGImage? {
 		let width = image.width
 		let height = image.height
-		let row = image.bytesPerRow
-		let bytes = image.bitsPerPixel / 8
-		guard bytes >= 4 else { return nil }
-
-		let alpha: Int
-		switch image.alphaInfo {
-		case .premultipliedFirst, .first, .noneSkipFirst:
-			alpha = 0
-		case .premultipliedLast, .last, .noneSkipLast:
-			alpha = bytes - 1
-		default:
-			return nil
-		}
-
-		let step = 2
-		let mark: UInt8 = 2
-		var left = width
-		var right = -1
-		var top = height
-		var bottom = -1
-
-		var y = 0
-		while y < height {
-			var x = 0
-			while x < width {
-				let index = y * row + x * bytes + alpha
-				if data[index] > mark {
-					if x < left { left = x }
-					if x > right { right = x }
-					if y < top { top = y }
-					if y > bottom { bottom = y }
-				}
-				x += step
-			}
-			y += step
-		}
-
-		guard right >= left, bottom >= top else { return nil }
-		let pad = 1
-		let x = max(left - pad, 0)
-		let y0 = max(top - pad, 0)
-		let w = min(right - left + 1 + pad * 2, width - x)
-		let h = min(bottom - top + 1 + pad * 2, height - y0)
-		let rect = CGRect(x: x, y: y0, width: w, height: h)
-		return image.cropping(to: rect) ?? image
-	}
-
-	private static func scale(_ image: CGImage, maxWidth: Int, maxHeight: Int) -> CGImage? {
-		let width = image.width
-		let height = image.height
-		let fit = min(CGFloat(maxWidth) / CGFloat(width), CGFloat(maxHeight) / CGFloat(height), 1)
-		let outWidth = max(Int(CGFloat(width) * fit), 1)
-		let outHeight = max(Int(CGFloat(height) * fit), 1)
+		let fit = min(CGFloat(maxw) / CGFloat(width), CGFloat(maxh) / CGFloat(height), 1)
+		let outw = max(Int(CGFloat(width) * fit), 1)
+		let outh = max(Int(CGFloat(height) * fit), 1)
 
 		let color = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
 		guard let context = CGContext(
 			data: nil,
-			width: outWidth,
-			height: outHeight,
+			width: outw,
+			height: outh,
 			bitsPerComponent: 8,
 			bytesPerRow: 0,
 			space: color,
@@ -144,8 +130,8 @@ enum Capture {
 
 		context.interpolationQuality = .high
 		context.setFillColor(CGColor(gray: 0.06, alpha: 1))
-		context.fill(CGRect(x: 0, y: 0, width: outWidth, height: outHeight))
-		context.draw(image, in: CGRect(x: 0, y: 0, width: outWidth, height: outHeight))
+		context.fill(CGRect(x: 0, y: 0, width: outw, height: outh))
+		context.draw(image, in: CGRect(x: 0, y: 0, width: outw, height: outh))
 		return context.makeImage()
 	}
 }
