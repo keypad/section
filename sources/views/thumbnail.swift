@@ -6,6 +6,7 @@ struct ThumbnailView: View {
 
 	private let accent = Color(red: 0.832, green: 0.69, blue: 0.549)
 	private let radius: CGFloat = 10
+	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
 
 	var body: some View {
 		ZStack(alignment: .bottom) {
@@ -44,14 +45,12 @@ struct ThumbnailView: View {
 			.background(.ultraThinMaterial.opacity(0.9))
 		}
 		.frame(width: 200, height: 160)
-		.clipped()
-		.clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+		.mask { shape }
 		.overlay(
-			RoundedRectangle(cornerRadius: radius, style: .continuous)
-				.strokeBorder(
-					selected ? accent : .white.opacity(0.08),
-					lineWidth: selected ? 2 : 1
-				)
+			shape.strokeBorder(
+				selected ? accent : .white.opacity(0.08),
+				lineWidth: selected ? 2 : 1
+			)
 		)
 		.shadow(color: selected ? accent.opacity(0.3) : .clear, radius: 12)
 		.animation(.easeInOut(duration: 0.1), value: selected)
