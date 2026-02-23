@@ -17,7 +17,7 @@ final class Overlay: NSPanel {
 		hidesOnDeactivate = false
 		isReleasedWhenClosed = false
 		isMovableByWindowBackground = false
-		hasShadow = true
+		hasShadow = false
 		collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 	}
 
@@ -66,14 +66,16 @@ final class Panel {
 		let frame = NSRect(x: x, y: y, width: width, height: height)
 
 		let panel = Overlay(frame: frame)
+		let clip = NSView(frame: NSRect(origin: .zero, size: frame.size))
+		clip.wantsLayer = true
+		clip.layer?.cornerRadius = 16
+		clip.layer?.cornerCurve = .continuous
+		clip.layer?.masksToBounds = true
 
 		let blur = NSVisualEffectView(frame: NSRect(origin: .zero, size: frame.size))
 		blur.material = .hudWindow
 		blur.state = .active
 		blur.blendingMode = .behindWindow
-		blur.wantsLayer = true
-		blur.layer?.cornerRadius = 16
-		blur.layer?.masksToBounds = true
 
 		let view = SwitcherView(state: state, onConfirm: { [weak self] in self?.onConfirm?() })
 		let hostView = NSHostingView(rootView: view)
@@ -88,7 +90,16 @@ final class Panel {
 			hostView.trailingAnchor.constraint(equalTo: blur.trailingAnchor),
 		])
 
-		panel.contentView = blur
+		clip.addSubview(blur)
+		blur.translatesAutoresizingMaskIntoConstraints = false
+		NSLayoutConstraint.activate([
+			blur.topAnchor.constraint(equalTo: clip.topAnchor),
+			blur.bottomAnchor.constraint(equalTo: clip.bottomAnchor),
+			blur.leadingAnchor.constraint(equalTo: clip.leadingAnchor),
+			blur.trailingAnchor.constraint(equalTo: clip.trailingAnchor),
+		])
+
+		panel.contentView = clip
 		panel.alphaValue = 0
 		panel.orderFrontRegardless()
 
