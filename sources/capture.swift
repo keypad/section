@@ -99,6 +99,53 @@ enum Capture {
 		}
 	}
 
+	static func frames(for items: [WindowItem], completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
+		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+		Task {
+			let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+			guard let windows = content?.windows else { return }
+			var results: [CGWindowID: NSImage] = [:]
+
+			for window in windows {
+				let id = window.windowID
+				guard let item = lookup[id] else { continue }
+				let filter = SCContentFilter(desktopIndependentWindow: window)
+				let config = SCStreamConfiguration()
+
+				let cap: CGFloat = 480
+				let w = item.bounds.width
+				let h = item.bounds.height
+				let fit = min(cap / w, cap / h, 1)
+
+				config.width = Int(w * fit * 2)
+				config.height = Int(h * fit * 2)
+				config.scalesToFit = true
+				config.preservesAspectRatio = true
+				config.showsCursor = false
+				config.ignoreShadowsSingleWindow = true
+				config.shouldBeOpaque = true
+
+				guard let image = try? await SCScreenshotManager.captureImage(
+					contentFilter: filter,
+					configuration: config
+				) else { continue }
+
+				let body: CGFloat = 160 - 28
+				let width = max(Int(Grid.width(item, height: 160, bar: 28) * 2), 1)
+				let height = max(Int(body * 2), 1)
+				guard let output = outputlive(image, width: width, height: height) else { continue }
+				let result = NSImage(
+					cgImage: output,
+					size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
+				)
+				results[id] = result
+				await vault.store(id: id, image: result)
+			}
+
+			await MainActor.run { completion(results) }
+		}
+	}
+
 	static func frame(for item: WindowItem) async -> NSImage? {
 		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
 		guard let windows = content?.windows else { return nil }
