@@ -17,19 +17,23 @@ struct ThumbnailView: View {
 					Image(nsImage: thumbnail)
 						.resizable()
 						.scaledToFill()
+						.blur(radius: 10)
+						.opacity(0.35)
 						.frame(width: width, height: height - bar)
 						.clipped()
+					Image(nsImage: thumbnail)
+						.resizable()
+						.scaledToFit()
+						.frame(width: width, height: height - bar)
 				} else {
 					Color.black.opacity(0.3)
-				}
-				if item.thumbnail == nil {
 					Color.white.opacity(0.05)
-				}
-				if let icon = item.icon, item.thumbnail == nil {
-					Image(nsImage: icon)
-						.resizable()
-						.frame(width: 40, height: 40)
-						.opacity(0.5)
+					if let icon = item.icon {
+						Image(nsImage: icon)
+							.resizable()
+							.frame(width: 40, height: 40)
+							.opacity(0.5)
+					}
 				}
 			}
 			.frame(width: width, height: height - bar)
