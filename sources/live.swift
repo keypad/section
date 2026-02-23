@@ -284,11 +284,12 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	}
 
 	private func crop(_ image: CGImage, bounds: CGRect) -> CGImage? {
+		let base = trim(image) ?? image
 		let targetw = cardwidth(bounds)
 		let targeth = max(CGFloat(160 - 28), 1)
 		let targetr = targetw / targeth
-		let sw = CGFloat(image.width)
-		let sh = CGFloat(image.height)
+		let sw = CGFloat(base.width)
+		let sh = CGFloat(base.height)
 		let sr = sw / sh
 		var rect = CGRect(x: 0, y: 0, width: sw, height: sh)
 		if sr > targetr {
@@ -300,6 +301,62 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 			let y = max(sh - h, 0)
 			rect = CGRect(x: 0, y: y, width: sw, height: h)
 		}
-		return image.cropping(to: rect)
+		return base.cropping(to: rect)
+	}
+
+	private func trim(_ image: CGImage) -> CGImage? {
+		guard let data = image.dataProvider?.data else { return image }
+		guard let bytes = CFDataGetBytePtr(data) else { return image }
+		let width = image.width
+		let height = image.height
+		let row = image.bytesPerRow
+		let pixel = max(image.bitsPerPixel / 8, 4)
+		guard width > 8, height > 8 else { return image }
+		let limitx = max(width / 4, 1)
+		let limity = max(height / 4, 1)
+
+		func dark(_ x: Int, _ y: Int) -> Bool {
+			let index = y * row + x * pixel
+			let r = Int(bytes[index + 0])
+			let g = Int(bytes[index + 1])
+			let b = Int(bytes[index + 2])
+			return r + g + b < 24
+		}
+
+		func col(_ x: Int) -> Bool {
+			var y = 0
+			while y < height {
+				if !dark(x, y) { return false }
+				y += 8
+			}
+			return true
+		}
+
+		func rowdark(_ y: Int) -> Bool {
+			var x = 0
+			while x < width {
+				if !dark(x, y) { return false }
+				x += 8
+			}
+			return true
+		}
+
+		var left = 0
+		while left < limitx && col(left) { left += 1 }
+		var right = 0
+		while right < limitx && col(width - 1 - right) { right += 1 }
+		var top = 0
+		while top < limity && rowdark(height - 1 - top) { top += 1 }
+		var bottom = 0
+		while bottom < limity && rowdark(bottom) { bottom += 1 }
+
+		if left == 0 && right == 0 && top == 0 && bottom == 0 { return image }
+		let x = left
+		let y = bottom
+		let w = width - left - right
+		let h = height - top - bottom
+		guard w > 16, h > 16 else { return image }
+		let rect = CGRect(x: x, y: y, width: w, height: h)
+		return image.cropping(to: rect) ?? image
 	}
 }
