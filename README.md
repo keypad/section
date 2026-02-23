@@ -62,8 +62,10 @@
 
 > install?
 
-  for now: build from source
-  planned: signed dmg + homebrew cask
+  ./scripts/install
+  open dist/section-0.1.0.dmg
+  drag section.app to applications
+  optional signing: SIGN_IDENTITY="developer id application: ..." ./scripts/install
 
 > links?
 
