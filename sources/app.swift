@@ -89,7 +89,10 @@ final class App: NSObject, NSApplicationDelegate {
 		let minimal = NSMenuItem(title: "Minimal", action: #selector(setminimal), keyEquivalent: "")
 		minimal.target = self
 		thememenu.addItem(minimal)
-		thememenu.addItem(.separator())
+		let themeitem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+		themeitem.submenu = thememenu
+		menu.addItem(themeitem)
+
 		let colormenu = NSMenu()
 		let warm = NSMenuItem(title: "Warm", action: #selector(setwarm), keyEquivalent: "")
 		warm.target = self
@@ -114,10 +117,8 @@ final class App: NSObject, NSApplicationDelegate {
 		colormenu.addItem(solarized)
 		let coloritem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
 		coloritem.submenu = colormenu
-		thememenu.addItem(coloritem)
-		let themeitem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
-		themeitem.submenu = thememenu
-		menu.addItem(themeitem)
+		menu.addItem(.separator())
+		menu.addItem(coloritem)
 		menu.addItem(.separator())
 		let login = NSMenuItem(title: "Launch At Login", action: #selector(togglelogin), keyEquivalent: "l")
 		login.target = self
