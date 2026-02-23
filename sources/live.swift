@@ -19,8 +19,10 @@ final class Live {
 		}
 		if box == nil {
 			box = Box { [weak self] id, image in
-				Task { @MainActor in
-					self?.apply([id: image])
+				DispatchQueue.main.async {
+					if let self {
+						self.apply([id: image])
+					}
 				}
 			}
 		}
@@ -46,10 +48,11 @@ final class Box: NSObject, SCStreamOutput {
 
 	private let push: @Sendable (CGWindowID, NSImage) -> Void
 	private let queue = DispatchQueue(label: "section.live")
-	private let context = CIContext()
+	private let context = CIContext(options: [.cacheIntermediates: false])
 	private let lock = NSLock()
 	private var meta: Meta?
 	private var switching = false
+	private var last: CFAbsoluteTime = 0
 	private var stream: SCStream?
 	private var table: [CGWindowID: SCWindow] = [:]
 	private var active: CGWindowID?
@@ -195,7 +198,20 @@ final class Box: NSObject, SCStreamOutput {
 		lock.lock()
 		meta = nil
 		switching = false
+		last = 0
 		lock.unlock()
+	}
+
+	private func allowpush() -> Bool {
+		let now = CFAbsoluteTimeGetCurrent()
+		lock.lock()
+		if now - last < 1.0 / 12.0 {
+			lock.unlock()
+			return false
+		}
+		last = now
+		lock.unlock()
+		return true
 	}
 
 	func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
@@ -203,14 +219,17 @@ final class Box: NSObject, SCStreamOutput {
 		guard !getswitching() else { return }
 		guard complete(sampleBuffer) else { return }
 		guard let current = getmeta() else { return }
-		guard let buffer = sampleBuffer.imageBuffer else { return }
-		let image = CIImage(cvImageBuffer: buffer)
-		guard let cg = context.createCGImage(image, from: image.extent) else { return }
-		let ns = NSImage(
-			cgImage: cg,
-			size: NSSize(width: CGFloat(cg.width) / 2, height: CGFloat(cg.height) / 2)
-		)
-		push(current.id, ns)
+		guard allowpush() else { return }
+		autoreleasepool {
+			guard let buffer = sampleBuffer.imageBuffer else { return }
+			let image = CIImage(cvImageBuffer: buffer)
+			guard let cg = context.createCGImage(image, from: image.extent) else { return }
+			let ns = NSImage(
+				cgImage: cg,
+				size: NSSize(width: CGFloat(cg.width) / 2, height: CGFloat(cg.height) / 2)
+			)
+			push(current.id, ns)
+		}
 	}
 
 	private func complete(_ sampleBuffer: CMSampleBuffer) -> Bool {
