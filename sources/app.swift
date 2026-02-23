@@ -13,6 +13,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var laststep: CFAbsoluteTime = 0
 	private var session = 0
 	private var refreshid = 0
+	private var videotimer: Timer?
+	private var videobusy = false
 	private var tray: NSStatusItem?
 	private var pictureitem: NSMenuItem?
 	private var videoitem: NSMenuItem?
@@ -103,6 +105,7 @@ final class App: NSObject, NSApplicationDelegate {
 		update()
 		if open {
 			start()
+			startvideo()
 		}
 	}
 
@@ -138,7 +141,10 @@ extension App: HotkeyHandler {
 		overlay?.show(on: screen, state: state)
 		open = true
 		applysnapshot(items: items, animated: true)
-		if video { start() }
+		if video {
+			start()
+			startvideo()
+		}
 	}
 
 	func next() {
@@ -180,6 +186,7 @@ extension App: HotkeyHandler {
 	private func stop() {
 		retunework?.cancel()
 		retunework = nil
+		stopvideo()
 		live?.stop()
 	}
 
@@ -233,6 +240,35 @@ extension App: HotkeyHandler {
 			guard ticket == session else { return }
 			guard refresh == refreshid else { return }
 			state.apply(results, animated: animated)
+		}
+	}
+
+	private func startvideo() {
+		stopvideo()
+		videotimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+			self?.videotick()
+		}
+	}
+
+	private func stopvideo() {
+		videotimer?.invalidate()
+		videotimer = nil
+		videobusy = false
+	}
+
+	private func videotick() {
+		guard open, video else { return }
+		guard !videobusy else { return }
+		let items = state.items
+		guard !items.isEmpty else { return }
+		videobusy = true
+		let ticket = session
+		Capture.frames(for: items) { [weak self] results in
+			guard let self else { return }
+			self.videobusy = false
+			guard self.open else { return }
+			guard ticket == self.session else { return }
+			self.state.apply(results, animated: false)
 		}
 	}
 }
