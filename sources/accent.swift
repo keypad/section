@@ -2,6 +2,7 @@ import SwiftUI
 
 enum Accent: Int {
 	case warm
+	case light
 	case catppuccin
 	case nord
 	case tokyonight
@@ -12,6 +13,8 @@ enum Accent: Int {
 		switch self {
 		case .warm:
 			return Color(hex: 0xD4B08C)
+		case .light:
+			return Color(hex: 0x4C84E8)
 		case .catppuccin:
 			return Color(hex: 0xCBA6F7)
 		case .nord:
@@ -29,6 +32,8 @@ enum Accent: Int {
 		switch self {
 		case .warm:
 			return Color(hex: 0x0F1218)
+		case .light:
+			return Color(hex: 0xF3F6FB)
 		case .catppuccin:
 			return Color(hex: 0x313244)
 		case .nord:
@@ -46,6 +51,8 @@ enum Accent: Int {
 		switch self {
 		case .warm:
 			return Color(hex: 0x090B10)
+		case .light:
+			return Color(hex: 0xE8EEF7)
 		case .catppuccin:
 			return Color(hex: 0x45475A)
 		case .nord:
@@ -63,6 +70,8 @@ enum Accent: Int {
 		switch self {
 		case .warm:
 			return Color.white.opacity(0.9)
+		case .light:
+			return Color(hex: 0x1E2633)
 		case .catppuccin:
 			return Color(hex: 0xCDD6F4)
 		case .nord:
