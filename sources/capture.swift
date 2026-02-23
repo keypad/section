@@ -45,11 +45,9 @@ enum Capture {
 	}
 
 	private static func output(_ image: CGImage) -> CGImage? {
-		let ratio: CGFloat = 200.0 / 160.0
 		guard let first = trim(image) else { return nil }
 		let second = solid(first) ?? first
-		guard let third = fit(second, ratio: ratio) else { return nil }
-		return scale(third, width: 400, height: 320)
+		return scale(second, maxWidth: 400, maxHeight: 320)
 	}
 
 	private static func trim(_ image: CGImage) -> CGImage? {
@@ -69,27 +67,6 @@ enum Capture {
 			width: width - left - right,
 			height: height - top - bottom
 		)
-
-		return image.cropping(to: rect) ?? image
-	}
-
-	private static func fit(_ image: CGImage, ratio: CGFloat) -> CGImage? {
-		let width = CGFloat(image.width)
-		let height = CGFloat(image.height)
-		let current = width / height
-
-		var rect = CGRect(x: 0, y: 0, width: width, height: height)
-
-		if current > ratio {
-			let target = floor(height * ratio)
-			let inset = floor((width - target) / 2)
-			rect = CGRect(x: inset, y: 0, width: target, height: height)
-		}
-
-		if current < ratio {
-			let target = floor(width / ratio)
-			rect = CGRect(x: 0, y: 0, width: width, height: target)
-		}
 
 		return image.cropping(to: rect) ?? image
 	}
@@ -150,12 +127,18 @@ enum Capture {
 		return image.cropping(to: rect) ?? image
 	}
 
-	private static func scale(_ image: CGImage, width: Int, height: Int) -> CGImage? {
+	private static func scale(_ image: CGImage, maxWidth: Int, maxHeight: Int) -> CGImage? {
+		let width = image.width
+		let height = image.height
+		let fit = min(CGFloat(maxWidth) / CGFloat(width), CGFloat(maxHeight) / CGFloat(height), 1)
+		let outWidth = max(Int(CGFloat(width) * fit), 1)
+		let outHeight = max(Int(CGFloat(height) * fit), 1)
+
 		let color = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
 		guard let context = CGContext(
 			data: nil,
-			width: width,
-			height: height,
+			width: outWidth,
+			height: outHeight,
 			bitsPerComponent: 8,
 			bytesPerRow: 0,
 			space: color,
@@ -163,9 +146,7 @@ enum Capture {
 		) else { return nil }
 
 		context.interpolationQuality = .high
-		context.setFillColor(CGColor(gray: 0.06, alpha: 1))
-		context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-		context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+		context.draw(image, in: CGRect(x: 0, y: 0, width: outWidth, height: outHeight))
 		return context.makeImage()
 	}
 }

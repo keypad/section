@@ -13,12 +13,12 @@ struct ThumbnailView: View {
 	var body: some View {
 		VStack(spacing: 0) {
 			ZStack {
+				Color.black.opacity(0.3)
 				if let thumbnail = item.thumbnail {
 					Image(nsImage: thumbnail)
 						.resizable()
-						.scaledToFill()
+						.scaledToFit()
 						.frame(width: width, height: height - bar)
-						.clipped()
 				} else {
 					Color.white.opacity(0.05)
 					if let icon = item.icon {
