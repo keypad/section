@@ -51,6 +51,8 @@ final class Box: NSObject, SCStreamOutput {
 	private var meta: Meta?
 	private var switching = false
 	private var stream: SCStream?
+	private var table: [CGWindowID: SCWindow] = [:]
+	private var active: CGWindowID?
 
 	init(push: @escaping @Sendable (CGWindowID, NSImage) -> Void) {
 		self.push = push
@@ -58,17 +60,23 @@ final class Box: NSObject, SCStreamOutput {
 
 	@MainActor
 	func set(_ item: WindowItem) async {
+		if active == item.id {
+			setmeta(Meta(id: item.id, bounds: item.bounds))
+			return
+		}
 		if stream == nil {
-			let ok = await open(item.id, bounds: item.bounds)
+			let ok = await open(item.id)
 			if ok {
+				active = item.id
 				setmeta(Meta(id: item.id, bounds: item.bounds))
 			}
 			return
 		}
 		setswitching(true)
-		let ok = await update(item.id, bounds: item.bounds)
+		let ok = await update(item.id)
 		setswitching(false)
 		if ok {
+			active = item.id
 			setmeta(Meta(id: item.id, bounds: item.bounds))
 		}
 	}
@@ -78,17 +86,17 @@ final class Box: NSObject, SCStreamOutput {
 		guard let stream else { return }
 		self.stream = nil
 		try? await stream.stopCapture()
+		table = [:]
+		active = nil
 		clear()
 	}
 
 	@MainActor
-	private func open(_ id: CGWindowID, bounds: CGRect) async -> Bool {
-		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-		guard let windows = content?.windows else { return false }
-		guard let window = windows.first(where: { $0.windowID == id }) else { return false }
+	private func open(_ id: CGWindowID) async -> Bool {
+		guard let window = await window(id) else { return false }
 
 		let filter = SCContentFilter(desktopIndependentWindow: window)
-		let config = config(bounds)
+		let config = config()
 		let stream = SCStream(filter: filter, configuration: config, delegate: nil)
 		self.stream = stream
 		try? stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
@@ -97,34 +105,43 @@ final class Box: NSObject, SCStreamOutput {
 	}
 
 	@MainActor
-	private func update(_ id: CGWindowID, bounds: CGRect) async -> Bool {
+	private func update(_ id: CGWindowID) async -> Bool {
 		guard let stream else {
-			return await open(id, bounds: bounds)
+			return await open(id)
 		}
-		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-		guard let windows = content?.windows else { return false }
-		guard let window = windows.first(where: { $0.windowID == id }) else { return false }
+		guard let window = await window(id) else { return false }
 		let filter = SCContentFilter(desktopIndependentWindow: window)
-		let next = config(bounds)
 		do {
-			try await stream.updateConfiguration(next)
 			try await stream.updateContentFilter(filter)
 			return true
 		} catch {
 			try? await stream.stopCapture()
 			self.stream = nil
-			return await open(id, bounds: bounds)
+			return await open(id)
 		}
 	}
 
-	private func config(_ bounds: CGRect) -> SCStreamConfiguration {
+	@MainActor
+	private func refresh() async {
+		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+		guard let windows = content?.windows else {
+			table = [:]
+			return
+		}
+		table = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
+	}
+
+	@MainActor
+	private func window(_ id: CGWindowID) async -> SCWindow? {
+		if let value = table[id] { return value }
+		await refresh()
+		return table[id]
+	}
+
+	private func config() -> SCStreamConfiguration {
 		let config = SCStreamConfiguration()
-		let cap: CGFloat = 480
-		let w = bounds.width
-		let h = bounds.height
-		let fit = min(cap / w, cap / h, 1)
-		config.width = Int(w * fit * 2)
-		config.height = Int(h * fit * 2)
+		config.width = 640
+		config.height = 400
 		config.minimumFrameInterval = CMTime(value: 1, timescale: 12)
 		config.queueDepth = 2
 		config.showsCursor = false
