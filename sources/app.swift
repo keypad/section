@@ -5,8 +5,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var hotkey: Hotkey?
 	private var overlay: Panel?
 	private var state = SwitcherState()
-	private var live: Timer?
-	private var busy = false
+	private var live: Live?
 	private var open = false
 	private var video = false
 	private var tray: NSStatusItem?
@@ -18,6 +17,9 @@ final class App: NSObject, NSApplicationDelegate {
 		Permissions.check()
 		overlay = Panel()
 		hotkey = Hotkey(handler: self)
+		live = Live { [weak self] images in
+			self?.state.apply(images, animated: false)
+		}
 		setup()
 	}
 
@@ -112,12 +114,10 @@ extension App: HotkeyHandler {
 
 	func next() {
 		state.next()
-		if video { loop() }
 	}
 
 	func previous() {
 		state.previous()
-		if video { loop() }
 	}
 
 	func confirm() {
@@ -144,30 +144,10 @@ extension App: HotkeyHandler {
 	}
 
 	private func start() {
-		stop()
-		live = Timer.scheduledTimer(withTimeInterval: 1.0 / 24.0, repeats: true) { [weak self] _ in
-			Task { @MainActor in
-				self?.loop()
-			}
-		}
-		loop()
+		live?.start(items: state.items)
 	}
 
 	private func stop() {
-		live?.invalidate()
-		live = nil
-		busy = false
-	}
-
-	private func loop() {
-		let items = state.items
-		guard !items.isEmpty else { return }
-		guard !busy else { return }
-		busy = true
-		Capture.frames(for: items) { [weak self] images in
-			defer { self?.busy = false }
-			guard !images.isEmpty else { return }
-			self?.state.apply(images, animated: false)
-		}
+		live?.stop()
 	}
 }
