@@ -32,6 +32,21 @@ final class SwitcherState: ObservableObject {
 	}
 
 	func apply(_ thumbnails: [CGWindowID: NSImage]) {
+		apply(thumbnails, animated: true)
+	}
+
+	func apply(_ thumbnails: [CGWindowID: NSImage], animated: Bool) {
+		if animated {
+			withAnimation(.easeOut(duration: 0.12)) {
+				for i in items.indices {
+					if let image = thumbnails[items[i].id] {
+						items[i].thumbnail = image
+					}
+				}
+			}
+			return
+		}
+
 		for i in items.indices {
 			if let image = thumbnails[items[i].id] {
 				items[i].thumbnail = image
