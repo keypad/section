@@ -6,7 +6,7 @@ struct ThumbnailView: View {
 
 	private let accent = Color(red: 0.832, green: 0.69, blue: 0.549)
 	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-	private let width: CGFloat = 200
+	private let width: CGFloat = 220
 	private let height: CGFloat = 160
 	private let bar: CGFloat = 28
 

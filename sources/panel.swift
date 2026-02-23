@@ -52,7 +52,7 @@ final class Panel {
 		let count = state.items.count
 		let columns = min(max(count, 1), 4)
 		let rows = (count + columns - 1) / columns
-		let cardW: CGFloat = 200
+		let cardW: CGFloat = 220
 		let cardH: CGFloat = 160
 		let spacing: CGFloat = 12
 		let padding: CGFloat = 24

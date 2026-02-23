@@ -5,7 +5,7 @@ struct SwitcherView: View {
 
 	private var columns: [GridItem] {
 		let count = min(max(state.items.count, 1), 4)
-		return Array(repeating: GridItem(.fixed(200), spacing: 12), count: count)
+		return Array(repeating: GridItem(.fixed(220), spacing: 12), count: count)
 	}
 
 	var body: some View {
