@@ -79,7 +79,7 @@ final class Panel {
 		let panel = Overlay(frame: frame)
 		let clip = NSView(frame: NSRect(origin: .zero, size: frame.size))
 		clip.wantsLayer = true
-		clip.layer?.cornerRadius = 16
+		clip.layer?.cornerRadius = theme == .square ? 0 : 16
 		clip.layer?.cornerCurve = .continuous
 		clip.layer?.masksToBounds = true
 
