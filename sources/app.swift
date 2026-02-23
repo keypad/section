@@ -11,7 +11,6 @@ final class App: NSObject, NSApplicationDelegate {
 		overlay = Panel()
 		overlay?.onConfirm = { [weak self] in self?.confirm() }
 		hotkey = Hotkey(handler: self)
-		print("section ready")
 	}
 }
 
@@ -19,7 +18,6 @@ extension App: HotkeyHandler {
 	func show() {
 		let screen = Screens.current()
 		let items = Windows.list(on: screen)
-		print("show: \(items.count) windows [\(items.map { "\($0.owner):\($0.name)" }.joined(separator: ", "))]")
 
 		if items.isEmpty { return }
 
@@ -39,16 +37,15 @@ extension App: HotkeyHandler {
 	}
 
 	func confirm() {
-		guard let item = state.selected else {
-			overlay?.hide()
-			return
-		}
+		let item = state.selected
 		overlay?.hide()
-		Focus.activate(item)
+		hotkey?.reset()
+		if let item { Focus.activate(item) }
 	}
 
 	func cancel() {
 		overlay?.hide()
+		hotkey?.reset()
 	}
 
 	func quickswitch() {
