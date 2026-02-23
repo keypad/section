@@ -57,8 +57,8 @@ enum Capture {
 		let height = image.height
 
 		let left = min(max(width / 220, 2), 6)
-		let top = min(max(height / 220, 2), 6)
-		let bottom = top
+		let top = 1
+		let bottom = min(max(height / 220, 2), 6)
 		let right = min(max(width / 45, 10), 20)
 
 		guard width > left + right, height > top + bottom else { return image }
@@ -139,11 +139,13 @@ enum Capture {
 
 		guard right >= left, bottom >= top else { return nil }
 
-		let pad = 2
-		let x = max(left - pad, 0)
-		let y0 = max(top - pad, 0)
-		let w = min(right - left + 1 + pad * 2, width - x)
-		let h = min(bottom - top + 1 + pad * 2, height - y0)
+		let padx = 2
+		let topPad = 12
+		let bottomPad = 2
+		let x = max(left - padx, 0)
+		let y0 = max(top - topPad, 0)
+		let w = min(right - left + 1 + padx * 2, width - x)
+		let h = min(bottom - top + 1 + topPad + bottomPad, height - y0)
 		let rect = CGRect(x: x, y: y0, width: w, height: h)
 		return image.cropping(to: rect) ?? image
 	}
