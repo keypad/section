@@ -10,6 +10,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var video = true
 	private var permonitor = false
 	private var retunework: DispatchWorkItem?
+	private var laststep: CFAbsoluteTime = 0
 	private var session = 0
 	private var refreshid = 0
 	private var tray: NSStatusItem?
@@ -141,13 +142,11 @@ extension App: HotkeyHandler {
 	}
 
 	func next() {
-		state.next()
-		if video { queuevideo() }
+		step(1)
 	}
 
 	func previous() {
-		state.previous()
-		if video { queuevideo() }
+		step(-1)
 	}
 
 	func confirm() {
@@ -176,7 +175,6 @@ extension App: HotkeyHandler {
 
 	private func start() {
 		live?.start(item: state.selected)
-		refresh()
 	}
 
 	private func stop() {
@@ -191,7 +189,19 @@ extension App: HotkeyHandler {
 			self?.retune()
 		}
 		retunework = work
-		DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: work)
+	}
+
+	private func step(_ direction: Int) {
+		let now = CFAbsoluteTimeGetCurrent()
+		if now - laststep < 0.06 { return }
+		laststep = now
+		if direction > 0 {
+			state.next()
+		} else {
+			state.previous()
+		}
+		if video { queuevideo() }
 	}
 
 	private func retune() {
@@ -216,7 +226,8 @@ extension App: HotkeyHandler {
 		refreshid += 1
 		let refresh = refreshid
 		let focus = state.index
-		Capture.thumbnails(for: items, focus: focus) { [weak self] results in
+		let limit = video ? 3 : items.count
+		Capture.thumbnails(for: items, focus: focus, limit: limit) { [weak self] results in
 			guard let self else { return }
 			guard open else { return }
 			guard ticket == session else { return }
