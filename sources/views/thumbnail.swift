@@ -4,6 +4,8 @@ struct ThumbnailView: View {
 	let item: WindowItem
 	let selected: Bool
 	private static var cache: [CGWindowID: Color] = [:]
+	private static var order: [CGWindowID] = []
+	private static let limit = 256
 
 	private let accent = Color(red: 0.832, green: 0.69, blue: 0.549)
 	private let shape = Rectangle()
@@ -15,7 +17,7 @@ struct ThumbnailView: View {
 		if let color = Self.cache[item.id] { return color }
 		guard let thumbnail = item.thumbnail else { return Color.black }
 		let color = Self.tone(thumbnail)
-		Self.cache[item.id] = color
+		Self.set(id: item.id, color: color)
 		return color
 	}
 
@@ -136,5 +138,17 @@ struct ThumbnailView: View {
 		g = min(max(g * 0.8, floor), ceil)
 		b = min(max(b * 0.8, floor), ceil)
 		return Color(red: r, green: g, blue: b)
+	}
+
+	private static func set(id: CGWindowID, color: Color) {
+		cache[id] = color
+		order.removeAll { $0 == id }
+		order.append(id)
+		guard order.count > limit else { return }
+		let drop = order.count - limit
+		for _ in 0..<drop {
+			let old = order.removeFirst()
+			cache.removeValue(forKey: old)
+		}
 	}
 }
