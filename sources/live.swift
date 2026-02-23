@@ -86,6 +86,7 @@ final class Box: NSObject, SCStreamOutput {
 	func stop() async {
 		guard let stream else { return }
 		self.stream = nil
+		try? stream.removeStreamOutput(self, type: .screen)
 		try? await stream.stopCapture()
 		table = [:]
 		active = nil
@@ -205,15 +206,9 @@ final class Box: NSObject, SCStreamOutput {
 		guard let buffer = sampleBuffer.imageBuffer else { return }
 		let image = CIImage(cvImageBuffer: buffer)
 		guard let cg = context.createCGImage(image, from: image.extent) else { return }
-
-		let body: CGFloat = 160 - 28
-		let width = max(Int(cardwidth(current.bounds) * 2), 1)
-		let height = max(Int(body * 2), 1)
-		guard let out = fit(cg, width: width, height: height) else { return }
-
 		let ns = NSImage(
-			cgImage: out,
-			size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
+			cgImage: cg,
+			size: NSSize(width: CGFloat(cg.width) / 2, height: CGFloat(cg.height) / 2)
 		)
 		push(current.id, ns)
 	}
@@ -232,43 +227,5 @@ final class Box: NSObject, SCStreamOutput {
 		let ratio = bounds.width / max(bounds.height, 1)
 		let value = body * ratio
 		return min(max(value, 140), 320)
-	}
-
-	private func fit(_ image: CGImage, width: Int, height: Int) -> CGImage? {
-		let sw = CGFloat(image.width)
-		let sh = CGFloat(image.height)
-		let dw = CGFloat(width)
-		let dh = CGFloat(height)
-		let sr = sw / sh
-		let dr = dw / dh
-
-		var src = CGRect(x: 0, y: 0, width: sw, height: sh)
-		if sr > dr {
-			let cw = floor(sh * dr)
-			let x = floor((sw - cw) / 2)
-			src = CGRect(x: x, y: 0, width: cw, height: sh)
-		} else if sr < dr {
-			let ch = floor(sw / dr)
-			let y = max(sh - ch, 0)
-			src = CGRect(x: 0, y: y, width: sw, height: ch)
-		}
-
-		guard let crop = image.cropping(to: src) else { return nil }
-		let color = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
-		guard let context = CGContext(
-			data: nil,
-			width: width,
-			height: height,
-			bitsPerComponent: 8,
-			bytesPerRow: 0,
-			space: color,
-			bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-		) else { return nil }
-
-		context.interpolationQuality = .high
-		context.setFillColor(CGColor(gray: 0.06, alpha: 1))
-		context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-		context.draw(crop, in: CGRect(x: 0, y: 0, width: width, height: height))
-		return context.makeImage()
 	}
 }
