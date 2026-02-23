@@ -48,7 +48,7 @@ enum Capture {
 		let ratio: CGFloat = 200.0 / 160.0
 		guard let first = trim(image) else { return nil }
 		let second = solid(first) ?? first
-		guard let third = center(second, ratio: ratio) else { return nil }
+		guard let third = fit(second, ratio: ratio) else { return nil }
 		return scale(third, width: 400, height: 320)
 	}
 
@@ -73,7 +73,7 @@ enum Capture {
 		return image.cropping(to: rect) ?? image
 	}
 
-	private static func center(_ image: CGImage, ratio: CGFloat) -> CGImage? {
+	private static func fit(_ image: CGImage, ratio: CGFloat) -> CGImage? {
 		let width = CGFloat(image.width)
 		let height = CGFloat(image.height)
 		let current = width / height
@@ -88,8 +88,7 @@ enum Capture {
 
 		if current < ratio {
 			let target = floor(width / ratio)
-			let inset = floor((height - target) / 2)
-			rect = CGRect(x: 0, y: inset, width: width, height: target)
+			rect = CGRect(x: 0, y: height - target, width: width, height: target)
 		}
 
 		return image.cropping(to: rect) ?? image
