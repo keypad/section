@@ -4,6 +4,7 @@ import ScreenCaptureKit
 enum Capture {
 	static func thumbnails(for items: [WindowItem], completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
 		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+		let aspect: CGFloat = 200 / 160
 		Task {
 			var results: [CGWindowID: NSImage] = [:]
 
@@ -36,7 +37,7 @@ enum Capture {
 					contentFilter: filter,
 					configuration: config
 				) {
-					let source = crop(image)
+					let source = crop(image, ratio: aspect)
 					let size = NSSize(
 						width: CGFloat(source.width) / scale,
 						height: CGFloat(source.height) / scale
@@ -50,7 +51,7 @@ enum Capture {
 		}
 	}
 
-	private static func crop(_ image: CGImage) -> CGImage {
+	private static func crop(_ image: CGImage, ratio: CGFloat) -> CGImage {
 		let width = image.width
 		let height = image.height
 
@@ -68,6 +69,28 @@ enum Capture {
 			height: height - top - bottom
 		)
 
-		return image.cropping(to: rect) ?? image
+		guard let first = image.cropping(to: rect) else { return image }
+		let fit = fit(first, ratio: ratio)
+		return first.cropping(to: fit) ?? first
+	}
+
+	private static func fit(_ image: CGImage, ratio: CGFloat) -> CGRect {
+		let width = CGFloat(image.width)
+		let height = CGFloat(image.height)
+		let current = width / height
+
+		if current > ratio {
+			let target = floor(height * ratio)
+			let inset = floor((width - target) / 2)
+			return CGRect(x: inset, y: 0, width: target, height: height)
+		}
+
+		if current < ratio {
+			let target = floor(width / ratio)
+			let inset = floor((height - target) / 2)
+			return CGRect(x: 0, y: inset, width: width, height: target)
+		}
+
+		return CGRect(x: 0, y: 0, width: width, height: height)
 	}
 }
