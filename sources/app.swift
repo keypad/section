@@ -10,7 +10,6 @@ final class App: NSObject, NSApplicationDelegate {
 	private var open = false
 	private var video = false
 	private var tray: NSStatusItem?
-	private var menu: NSMenu?
 	private var item: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,7 +29,13 @@ final class App: NSObject, NSApplicationDelegate {
 		}
 
 		let menu = NSMenu()
-		let item = NSMenuItem(title: "", action: #selector(toggle), keyEquivalent: "")
+		menu.autoenablesItems = false
+		let head = NSMenuItem(title: "section", action: nil, keyEquivalent: "")
+		head.isEnabled = false
+		menu.addItem(head)
+		menu.addItem(.separator())
+
+		let item = NSMenuItem(title: "video", action: #selector(toggle), keyEquivalent: "v")
 		item.target = self
 		menu.addItem(item)
 		menu.addItem(.separator())
@@ -40,13 +45,12 @@ final class App: NSObject, NSApplicationDelegate {
 		tray.menu = menu
 
 		self.tray = tray
-		self.menu = menu
 		self.item = item
 		update()
 	}
 
 	private func update() {
-		item?.title = video ? "video: on" : "video: off"
+		item?.state = video ? .on : .off
 	}
 
 	@objc
