@@ -6,7 +6,7 @@ struct ThumbnailView: View {
 	private static var cache: [CGWindowID: Color] = [:]
 
 	private let accent = Color(red: 0.832, green: 0.69, blue: 0.549)
-	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+	private let shape = Rectangle()
 	private let height: CGFloat = 160
 	private let bar: CGFloat = 28
 	private var width: CGFloat { Grid.width(item, height: height, bar: bar) }
@@ -60,7 +60,7 @@ struct ThumbnailView: View {
 		}
 		.frame(width: width, height: height)
 		.compositingGroup()
-		.clipShape(shape, style: FillStyle(antialiased: true))
+		.clipShape(shape)
 		.overlay(
 			shape.strokeBorder(
 				selected ? accent : .white.opacity(0.08),
