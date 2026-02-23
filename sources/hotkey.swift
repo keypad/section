@@ -16,8 +16,8 @@ final class Hotkey: @unchecked Sendable {
 	private var source: CFRunLoopSource?
 	private var timer: Timer?
 	private weak var handler: (any HotkeyHandler)?
-	private var active = false
-	private var showTime: CFAbsoluteTime = 0
+	private var primed = false
+	private var showing = false
 
 	@MainActor
 	init(handler: any HotkeyHandler) {
@@ -26,7 +26,8 @@ final class Hotkey: @unchecked Sendable {
 	}
 
 	func reset() {
-		active = false
+		primed = false
+		showing = false
 	}
 
 	@MainActor
@@ -75,13 +76,11 @@ final class Hotkey: @unchecked Sendable {
 		let optionDown = flags.contains(.maskAlternate)
 
 		if type == .flagsChanged {
-			if !optionDown && active {
-				active = false
-				let elapsed = CFAbsoluteTimeGetCurrent() - showTime
-				DispatchQueue.main.async { [weak self] in
-					if elapsed < 0.15 {
-						self?.handler?.quickswitch()
-					} else {
+			if !optionDown {
+				primed = false
+				if showing {
+					showing = false
+					DispatchQueue.main.async { [weak self] in
 						self?.handler?.confirm()
 					}
 				}
@@ -91,9 +90,16 @@ final class Hotkey: @unchecked Sendable {
 
 		if type == .keyDown && optionDown {
 			if keycode == Int64(kVK_Tab) {
-				if !active {
-					active = true
-					showTime = CFAbsoluteTimeGetCurrent()
+				if !primed {
+					primed = true
+					DispatchQueue.main.async { [weak self] in
+						self?.handler?.quickswitch()
+					}
+					return nil
+				}
+
+				if !showing {
+					showing = true
 					DispatchQueue.main.async { [weak self] in
 						self?.handler?.show()
 					}
@@ -110,8 +116,9 @@ final class Hotkey: @unchecked Sendable {
 				return nil
 			}
 
-			if keycode == Int64(kVK_Escape) && active {
-				active = false
+			if keycode == Int64(kVK_Escape) && showing {
+				showing = false
+				primed = false
 				DispatchQueue.main.async { [weak self] in
 					self?.handler?.cancel()
 				}
@@ -119,8 +126,9 @@ final class Hotkey: @unchecked Sendable {
 			}
 		}
 
-		if type == .keyDown && !optionDown && active {
-			active = false
+		if type == .keyDown && !optionDown && showing {
+			showing = false
+			primed = false
 			DispatchQueue.main.async { [weak self] in
 				self?.handler?.cancel()
 			}
