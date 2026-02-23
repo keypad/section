@@ -51,6 +51,15 @@
   swift run
   ./watch.local
 
+> quality tools?
+
+  formatter: swift format (toolchain)
+  linter: swiftlint
+  format: swift format format -i -r sources Package.swift
+  lint: swiftlint lint --strict --config .swiftlint.yml
+  check: swiftlint lint --strict --config .swiftlint.yml && swift build
+  install swiftlint: brew install swiftlint
+
 > install?
 
   for now: build from source

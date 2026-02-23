@@ -1,0 +1,23 @@
+included:
+  - sources
+  - Package.swift
+
+excluded:
+  - .build
+
+disabled_rules:
+  - line_length
+  - file_length
+  - function_body_length
+  - cyclomatic_complexity
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - force_unwrapping
+  - redundant_nil_coalescing
+
+analyzer_rules:
+  - unused_declaration
+  - unused_import
