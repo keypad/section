@@ -56,8 +56,16 @@ tell application "Finder"
     set icon size of opts to 128
     set text size of opts to 14
     set background color of opts to {8704, 9216, 10240}
-    set position of item "Section.app" of container window to {250, 300}
-    set position of item "Applications" of container window to {650, 300}
+    set win to bounds of container window
+    set leftedge to item 1 of win
+    set rightedge to item 3 of win
+    set topedge to item 2 of win
+    set bottomedge to item 4 of win
+    set centerx to (leftedge + rightedge) / 2
+    set centery to (topedge + bottomedge) / 2
+    set spacing to 190
+    set position of item "Section.app" of container window to {centerx - spacing, centery}
+    set position of item "Applications" of container window to {centerx + spacing, centery}
     set the extension hidden of item "Section.app" to true
     close
     open
