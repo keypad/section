@@ -18,13 +18,6 @@ struct ThumbnailView: View {
 					Image(nsImage: thumbnail)
 						.resizable()
 						.scaledToFill()
-						.blur(radius: 10)
-						.opacity(0.35)
-						.frame(width: width, height: previewheight)
-						.clipped()
-					Image(nsImage: thumbnail)
-						.resizable()
-						.scaledToFill()
 						.frame(width: width, height: previewheight)
 						.clipped()
 				} else {
