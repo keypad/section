@@ -137,9 +137,7 @@ extension App: HotkeyHandler {
 		refreshid = 0
 		overlay?.show(on: screen, state: state)
 		open = true
-		if !video {
-			applysnapshot(items: items, animated: true)
-		}
+		applysnapshot(items: items, animated: true)
 		if video { start() }
 	}
 
@@ -228,7 +226,7 @@ extension App: HotkeyHandler {
 		refreshid += 1
 		let refresh = refreshid
 		let focus = state.index
-		let limit = video ? 1 : items.count
+		let limit = items.count
 		Capture.thumbnails(for: items, focus: focus, limit: limit) { [weak self] results in
 			guard let self else { return }
 			guard open else { return }
