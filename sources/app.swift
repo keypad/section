@@ -22,6 +22,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var monitoritem: NSMenuItem?
 	private var loginitem: NSMenuItem?
 	private var normalitem: NSMenuItem?
+	private var squareitem: NSMenuItem?
 	private var minimalitem: NSMenuItem?
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
@@ -73,6 +74,9 @@ final class App: NSObject, NSApplicationDelegate {
 		let normal = NSMenuItem(title: "Default", action: #selector(setnormal), keyEquivalent: "")
 		normal.target = self
 		thememenu.addItem(normal)
+		let square = NSMenuItem(title: "Square", action: #selector(setsquare), keyEquivalent: "")
+		square.target = self
+		thememenu.addItem(square)
 		let minimal = NSMenuItem(title: "Minimal", action: #selector(setminimal), keyEquivalent: "")
 		minimal.target = self
 		thememenu.addItem(minimal)
@@ -95,6 +99,7 @@ final class App: NSObject, NSApplicationDelegate {
 		self.monitoritem = monitor
 		self.loginitem = login
 		self.normalitem = normal
+		self.squareitem = square
 		self.minimalitem = minimal
 		update()
 	}
@@ -106,6 +111,7 @@ final class App: NSObject, NSApplicationDelegate {
 		loginitem?.state = Launch.enabled() ? .on : .off
 		loginitem?.isEnabled = Launch.available()
 		normalitem?.state = theme == .normal ? .on : .off
+		squareitem?.state = theme == .square ? .on : .off
 		minimalitem?.state = theme == .minimal ? .on : .off
 	}
 
@@ -130,6 +136,19 @@ final class App: NSObject, NSApplicationDelegate {
 	@objc
 	private func setnormal() {
 		theme = .normal
+		update()
+		if !open { return }
+		overlay?.show(on: Screens.current(), state: state, theme: theme)
+		applysnapshot(items: state.items, animated: false)
+		if video {
+			start()
+			startvideo()
+		}
+	}
+
+	@objc
+	private func setsquare() {
+		theme = .square
 		update()
 		if !open { return }
 		overlay?.show(on: Screens.current(), state: state, theme: theme)
@@ -249,7 +268,7 @@ extension App: HotkeyHandler {
 		} else {
 			state.previous()
 		}
-		if video && theme == .normal { queuevideo() }
+		if video && theme != .minimal { queuevideo() }
 	}
 
 	private func retune() {
@@ -301,7 +320,7 @@ extension App: HotkeyHandler {
 
 	private func videotick() {
 		guard open, video else { return }
-		guard theme == .normal else { return }
+		guard theme != .minimal else { return }
 		guard retunework == nil else { return }
 		guard !videobusy else { return }
 		let items = state.items
