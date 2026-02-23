@@ -12,17 +12,10 @@ struct ThumbnailView: View {
 	var body: some View {
 		ZStack {
 			if let thumbnail = item.thumbnail {
-				ZStack {
-					Image(nsImage: thumbnail)
-						.resizable()
-						.scaledToFill()
-						.frame(width: width, height: height)
-						.opacity(0.22)
-					Image(nsImage: thumbnail)
-						.resizable()
-						.scaledToFit()
-						.frame(width: width, height: height)
-				}
+				Image(nsImage: thumbnail)
+					.resizable()
+					.scaledToFill()
+					.frame(width: width, height: height)
 			} else {
 				Color.white.opacity(0.05)
 				if let icon = item.icon {
