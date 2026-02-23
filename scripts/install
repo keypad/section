@@ -43,9 +43,6 @@ device="$(echo "$attach" | awk '/^\/dev\// {print $1; exit}')"
 mount="$(echo "$attach" | awk '/\/Volumes\// {print substr($0, index($0, "/Volumes/")); exit}')"
 diskname="$(basename "$mount")"
 
-mkdir -p "$mount/.background"
-cp dist/background.png "$mount/.background/background.png"
-
 "$osas" <<EOF
 tell application "Finder"
   tell disk "$diskname"
@@ -58,7 +55,7 @@ tell application "Finder"
     set arrangement of opts to not arranged
     set icon size of opts to 128
     set text size of opts to 14
-    set background picture of opts to (POSIX file "$mount/.background/background.png" as alias)
+    set background color of opts to {8704, 9216, 10240}
     set position of item "Section.app" of container window to {250, 300}
     set position of item "Applications" of container window to {650, 300}
     set the extension hidden of item "Section.app" to true
@@ -74,10 +71,9 @@ for item in "$mount/.fseventsd" "$mount/.Trashes" "$mount/.TemporaryItems" "$mou
 	rm -rf "$item" >/dev/null 2>&1 || true
 done
 
-for item in "$mount/.background" "$mount/.background/background.png"; do
-	chflags hidden "$item" >/dev/null 2>&1 || true
-	xcrun SetFile -a V "$item" >/dev/null 2>&1 || true
-done
+chflags hidden "$mount/.DS_Store" >/dev/null 2>&1 || true
+xcrun SetFile -a V "$mount/.DS_Store" >/dev/null 2>&1 || true
+rm -rf "$mount/.background" >/dev/null 2>&1 || true
 
 "$hdi" detach "$device" -quiet
 "$hdi" convert "$rw" -ov -format UDZO -imagekey zlib-level=9 -o "$dmg" >/dev/null
