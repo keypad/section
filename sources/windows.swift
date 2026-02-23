@@ -19,13 +19,13 @@ enum Windows {
 		"Window Server", "Dock",
 	]
 
-	static func list(on screen: NSScreen) -> [WindowItem] {
+	static func list(on screen: NSScreen?) -> [WindowItem] {
 		guard let info = CGWindowListCopyWindowInfo(
 			[.optionOnScreenOnly, .excludeDesktopElements],
 			kCGNullWindowID
 		) as? [[String: Any]] else { return [] }
 
-		let frame = screen.frame
+		let frame = screen?.frame
 		let selfPid = ProcessInfo.processInfo.processIdentifier
 		var items: [WindowItem] = []
 		var rects: [pid_t: [CGRect]] = [:]
@@ -47,7 +47,7 @@ enum Windows {
 			let nsRect = Screens.convertFromCG(cgRect)
 			let center = NSPoint(x: nsRect.midX, y: nsRect.midY)
 
-			guard frame.contains(center) else { continue }
+			if let frame, !frame.contains(center) { continue }
 
 			let raw = (entry[kCGWindowName as String] as? String)?
 				.trimmingCharacters(in: .whitespacesAndNewlines)
