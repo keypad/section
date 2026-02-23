@@ -18,6 +18,7 @@ final class Hotkey: @unchecked Sendable {
 	private weak var handler: (any HotkeyHandler)?
 	private var primed = false
 	private var showing = false
+	private var locked = false
 	private var option = false
 	private var pending: DispatchWorkItem?
 
@@ -30,6 +31,7 @@ final class Hotkey: @unchecked Sendable {
 	func reset() {
 		primed = false
 		showing = false
+		locked = false
 		option = false
 		pending?.cancel()
 		pending = nil
@@ -93,7 +95,7 @@ final class Hotkey: @unchecked Sendable {
 					return Unmanaged.passRetained(event)
 				}
 				primed = false
-				if showing {
+				if showing && !locked {
 					showing = false
 					DispatchQueue.main.async { [weak self] in
 						self?.handler?.confirm()
@@ -104,6 +106,11 @@ final class Hotkey: @unchecked Sendable {
 		}
 
 		if type == .keyDown && optionDown {
+			if keycode == Int64(kVK_ANSI_Grave) && showing {
+				locked.toggle()
+				return nil
+			}
+
 			if keycode == Int64(kVK_Tab) {
 				if !primed {
 					primed = true
@@ -144,6 +151,7 @@ final class Hotkey: @unchecked Sendable {
 			if keycode == Int64(kVK_Escape) && showing {
 				showing = false
 				primed = false
+				locked = false
 				pending?.cancel()
 				pending = nil
 				DispatchQueue.main.async { [weak self] in
@@ -153,9 +161,10 @@ final class Hotkey: @unchecked Sendable {
 			}
 		}
 
-		if type == .keyDown && !optionDown && showing {
+		if type == .keyDown && !optionDown && showing && !locked {
 			showing = false
 			primed = false
+			locked = false
 			pending?.cancel()
 			pending = nil
 			DispatchQueue.main.async { [weak self] in
