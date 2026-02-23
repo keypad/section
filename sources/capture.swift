@@ -64,7 +64,7 @@ enum Capture {
 
 				config.width = Int(w * fit * 2)
 				config.height = Int(h * fit * 2)
-				config.scalesToFit = false
+				config.scalesToFit = true
 				config.preservesAspectRatio = true
 				config.showsCursor = false
 				config.ignoreShadowsSingleWindow = true
