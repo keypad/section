@@ -5,9 +5,13 @@
 	<key>CFBundleIdentifier</key>
 	<string>com.keypad.section</string>
 	<key>CFBundleName</key>
-	<string>section</string>
+	<string>Section</string>
 	<key>CFBundleDisplayName</key>
+	<string>Section</string>
+	<key>CFBundleExecutable</key>
 	<string>section</string>
+	<key>CFBundleIconFile</key>
+	<string>SectionIcon.icns</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>CFBundleShortVersionString</key>

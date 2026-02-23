@@ -62,9 +62,12 @@
 
 > install?
 
+  brew tap keypad/section
+  brew install --cask keypad/section/section
+  or
   ./scripts/install
   open dist/section-0.1.0.dmg
-  drag section.app to applications
+  drag Section.app to applications
   optional signing: SIGN_IDENTITY="developer id application: ..." ./scripts/install
 
 > links?

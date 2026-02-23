@@ -5,20 +5,23 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' sources/info.plist)"
-app="$root/dist/section.app"
+app="$root/dist/Section.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
 stage="$root/dist/stage"
 dmg="$root/dist/section-$version.dmg"
+rw="$root/dist/section-$version-rw.dmg"
 volume="Section $version"
 
 swift build -c release
+./scripts/assets
 
-rm -rf "$app" "$stage" "$dmg"
+rm -rf "$app" "$stage" "$dmg" "$rw"
 mkdir -p "$macos" "$resources" "$stage"
 cp .build/release/section "$macos/section"
 cp sources/info.plist "$contents/Info.plist"
+cp dist/SectionIcon.icns "$resources/SectionIcon.icns"
 printf 'APPL????' > "$contents/PkgInfo"
 chmod +x "$macos/section"
 
@@ -30,7 +33,41 @@ fi
 
 cp -R "$app" "$stage/"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "$volume" -srcfolder "$stage" -ov -format UDZO "$dmg" >/dev/null
+hdiutil create -volname "$volume" -srcfolder "$stage" -ov -format UDRW "$rw" >/dev/null
+
+attach="$(hdiutil attach -readwrite -noverify -noautoopen "$rw")"
+device="$(echo "$attach" | awk '/^\/dev\// {print $1; exit}')"
+mount="$(echo "$attach" | awk '/\/Volumes\// {print substr($0, index($0, "/Volumes/")); exit}')"
+
+mkdir -p "$mount/.background"
+cp dist/background.png "$mount/.background/background.png"
+
+osascript <<EOF
+tell application "Finder"
+  tell disk "$volume"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set bounds of container window to {120, 120, 1020, 680}
+    set opts to icon view options of container window
+    set arrangement of opts to not arranged
+    set icon size of opts to 128
+    set text size of opts to 14
+    set background picture of opts to POSIX file "$mount/.background/background.png"
+    set position of item "Section.app" of container window to {230, 300}
+    set position of item "Applications" of container window to {670, 300}
+    close
+    open
+    update without registering applications
+    delay 1
+  end tell
+end tell
+EOF
+
+hdiutil detach "$device" -quiet
+hdiutil convert "$rw" -ov -format UDZO -imagekey zlib-level=9 -o "$dmg" >/dev/null
+rm -f "$rw"
 rm -rf "$stage"
 
 echo "$dmg"
