@@ -6,6 +6,8 @@ import ScreenCaptureKit
 @MainActor
 final class Live {
 	private var box: Box?
+	private var pending: WindowItem?
+	private var running = false
 	private let apply: @MainActor ([CGWindowID: NSImage]) -> Void
 
 	init(apply: @escaping @MainActor ([CGWindowID: NSImage]) -> Void) {
@@ -26,16 +28,32 @@ final class Live {
 				}
 			}
 		}
+		pending = item
+		guard !running else { return }
+		running = true
 		Task { @MainActor [weak self] in
-			await self?.box?.set(item)
+			await self?.drain()
 		}
 	}
 
 	func stop() {
+		pending = nil
+		running = false
 		guard let box else { return }
 		self.box = nil
 		Task { @MainActor in
 			await box.stop()
+		}
+	}
+
+	private func drain() async {
+		while true {
+			guard let item = pending else {
+				running = false
+				return
+			}
+			pending = nil
+			await box?.set(item)
 		}
 	}
 }
@@ -52,6 +70,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 	private let lock = NSLock()
 	private var meta: Meta?
 	private var switching = false
+	private var skip = 0
 	private var last: CFAbsoluteTime = 0
 	private var staged: (CGWindowID, NSImage)?
 	private var scheduled = false
@@ -75,6 +94,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 			if ok {
 				active = item.id
 				setmeta(Meta(id: item.id, bounds: item.bounds))
+				setskip(2)
 			}
 			return
 		}
@@ -84,6 +104,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		if ok {
 			active = item.id
 			setmeta(Meta(id: item.id, bounds: item.bounds))
+			setskip(2)
 		}
 	}
 
@@ -162,7 +183,7 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		let fit = min(cap / w, cap / h, 1)
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
-		config.minimumFrameInterval = CMTime(value: 1, timescale: 10)
+		config.minimumFrameInterval = CMTime(value: 1, timescale: 8)
 		config.queueDepth = 2
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
@@ -200,16 +221,34 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		lock.lock()
 		meta = nil
 		switching = false
+		skip = 0
 		last = 0
 		staged = nil
 		scheduled = false
 		lock.unlock()
 	}
 
+	private func setskip(_ value: Int) {
+		lock.lock()
+		skip = value
+		lock.unlock()
+	}
+
+	private func shouldskip() -> Bool {
+		lock.lock()
+		if skip > 0 {
+			skip -= 1
+			lock.unlock()
+			return true
+		}
+		lock.unlock()
+		return false
+	}
+
 	private func allowpush() -> Bool {
 		let now = CFAbsoluteTimeGetCurrent()
 		lock.lock()
-		if now - last < 1.0 / 10.0 {
+		if now - last < 1.0 / 8.0 {
 			lock.unlock()
 			return false
 		}
@@ -223,15 +262,15 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		guard !getswitching() else { return }
 		guard complete(sampleBuffer) else { return }
 		guard let current = getmeta() else { return }
+		guard !shouldskip() else { return }
 		guard allowpush() else { return }
 		autoreleasepool {
 			guard let buffer = sampleBuffer.imageBuffer else { return }
 			let image = CIImage(cvImageBuffer: buffer)
 			guard let cg = context.createCGImage(image, from: image.extent) else { return }
-			guard let cropped = crop(cg, bounds: current.bounds) else { return }
 			let ns = NSImage(
-				cgImage: cropped,
-				size: NSSize(width: CGFloat(cropped.width) / 2, height: CGFloat(cropped.height) / 2)
+				cgImage: cg,
+				size: NSSize(width: CGFloat(cg.width) / 2, height: CGFloat(cg.height) / 2)
 			)
 			stage(current.id, ns)
 		}
@@ -276,87 +315,4 @@ final class Box: NSObject, SCStreamOutput, @unchecked Sendable {
 		return status == .complete
 	}
 
-	private func cardwidth(_ bounds: CGRect) -> CGFloat {
-		let body = max(CGFloat(160 - 28), 1)
-		let ratio = bounds.width / max(bounds.height, 1)
-		let value = body * ratio
-		return min(max(value, 140), 320)
-	}
-
-	private func crop(_ image: CGImage, bounds: CGRect) -> CGImage? {
-		let base = trim(image) ?? image
-		let targetw = cardwidth(bounds)
-		let targeth = max(CGFloat(160 - 28), 1)
-		let targetr = targetw / targeth
-		let sw = CGFloat(base.width)
-		let sh = CGFloat(base.height)
-		let sr = sw / sh
-		var rect = CGRect(x: 0, y: 0, width: sw, height: sh)
-		if sr > targetr {
-			let w = floor(sh * targetr)
-			let x = floor((sw - w) / 2)
-			rect = CGRect(x: x, y: 0, width: w, height: sh)
-		} else if sr < targetr {
-			let h = floor(sw / targetr)
-			let y = max(sh - h, 0)
-			rect = CGRect(x: 0, y: y, width: sw, height: h)
-		}
-		return base.cropping(to: rect)
-	}
-
-	private func trim(_ image: CGImage) -> CGImage? {
-		guard let data = image.dataProvider?.data else { return image }
-		guard let bytes = CFDataGetBytePtr(data) else { return image }
-		let width = image.width
-		let height = image.height
-		let row = image.bytesPerRow
-		let pixel = max(image.bitsPerPixel / 8, 4)
-		guard width > 8, height > 8 else { return image }
-		let limitx = max(width / 4, 1)
-		let limity = max(height / 4, 1)
-
-		func dark(_ x: Int, _ y: Int) -> Bool {
-			let index = y * row + x * pixel
-			let r = Int(bytes[index + 0])
-			let g = Int(bytes[index + 1])
-			let b = Int(bytes[index + 2])
-			return r + g + b < 24
-		}
-
-		func col(_ x: Int) -> Bool {
-			var y = 0
-			while y < height {
-				if !dark(x, y) { return false }
-				y += 8
-			}
-			return true
-		}
-
-		func rowdark(_ y: Int) -> Bool {
-			var x = 0
-			while x < width {
-				if !dark(x, y) { return false }
-				x += 8
-			}
-			return true
-		}
-
-		var left = 0
-		while left < limitx && col(left) { left += 1 }
-		var right = 0
-		while right < limitx && col(width - 1 - right) { right += 1 }
-		var top = 0
-		while top < limity && rowdark(height - 1 - top) { top += 1 }
-		var bottom = 0
-		while bottom < limity && rowdark(bottom) { bottom += 1 }
-
-		if left == 0 && right == 0 && top == 0 && bottom == 0 { return image }
-		let x = left
-		let y = bottom
-		let w = width - left - right
-		let h = height - top - bottom
-		guard w > 16, h > 16 else { return image }
-		let rect = CGRect(x: x, y: y, width: w, height: h)
-		return image.cropping(to: rect) ?? image
-	}
 }
