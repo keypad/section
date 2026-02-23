@@ -26,6 +26,11 @@ final class SwitcherState: ObservableObject {
 		index = (index - 1 + items.count) % items.count
 	}
 
+	func select(_ offset: Int) {
+		guard offset >= 0, offset < items.count else { return }
+		index = offset
+	}
+
 	func apply(_ thumbnails: [CGWindowID: NSImage]) {
 		for i in items.indices {
 			if let image = thumbnails[items[i].id] {
