@@ -138,7 +138,9 @@ extension App: HotkeyHandler {
 		refreshid = 0
 		overlay?.show(on: screen, state: state)
 		open = true
-		applysnapshot(items: items, animated: true)
+		if !video {
+			applysnapshot(items: items, animated: true)
+		}
 		if video { start() }
 	}
 
