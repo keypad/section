@@ -35,16 +35,31 @@ enum Capture {
 					contentFilter: filter,
 					configuration: config
 				) {
+					let source = crop(image)
 					let size = NSSize(
 						width: CGFloat(config.width) / scale,
 						height: CGFloat(config.height) / scale
 					)
-					results[wid] = NSImage(cgImage: image, size: size)
+					results[wid] = NSImage(cgImage: source, size: size)
 				}
 			}
 
 			let captured = results
 			await MainActor.run { completion(captured) }
 		}
+	}
+
+	private static func crop(_ image: CGImage) -> CGImage {
+		let inset = 4
+		let width = image.width
+		let height = image.height
+		guard width > inset * 2, height > inset * 2 else { return image }
+		let rect = CGRect(
+			x: inset,
+			y: inset,
+			width: width - inset * 2,
+			height: height - inset * 2
+		)
+		return image.cropping(to: rect) ?? image
 	}
 }
