@@ -4,7 +4,6 @@ import ScreenCaptureKit
 enum Capture {
 	static func thumbnails(for items: [WindowItem], completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
 		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-		let aspect: CGFloat = 200 / 160
 		Task {
 			var results: [CGWindowID: NSImage] = [:]
 
@@ -37,7 +36,7 @@ enum Capture {
 					contentFilter: filter,
 					configuration: config
 				) {
-					let source = crop(image, ratio: aspect)
+					let source = crop(image)
 					let size = NSSize(
 						width: CGFloat(source.width) / scale,
 						height: CGFloat(source.height) / scale
@@ -51,46 +50,24 @@ enum Capture {
 		}
 	}
 
-	private static func crop(_ image: CGImage, ratio: CGFloat) -> CGImage {
+	private static func crop(_ image: CGImage) -> CGImage {
 		let width = image.width
 		let height = image.height
 
-		let left = min(max(width / 180, 2), 8)
-		let top = min(max(height / 180, 2), 8)
+		let left = min(max(width / 220, 2), 6)
+		let top = min(max(height / 220, 2), 6)
 		let bottom = top
-		let right = min(max(width / 30, 8), 24)
+		let right = min(max(width / 45, 10), 20)
 
 		guard width > left + right, height > top + bottom else { return image }
 
-		let outer = CGRect(
+		let rect = CGRect(
 			x: left,
 			y: bottom,
 			width: width - left - right,
 			height: height - top - bottom
 		)
 
-		guard let first = image.cropping(to: outer) else { return image }
-		let inner = fit(first, ratio: ratio)
-		return first.cropping(to: inner) ?? first
-	}
-
-	private static func fit(_ image: CGImage, ratio: CGFloat) -> CGRect {
-		let width = CGFloat(image.width)
-		let height = CGFloat(image.height)
-		let current = width / height
-
-		if current > ratio {
-			let target = floor(height * ratio)
-			let inset = floor((width - target) / 2)
-			return CGRect(x: inset, y: 0, width: target, height: height)
-		}
-
-		if current < ratio {
-			let target = floor(width / ratio)
-			let inset = floor((height - target) / 2)
-			return CGRect(x: 0, y: inset, width: width, height: target)
-		}
-
-		return CGRect(x: 0, y: 0, width: width, height: height)
+		return image.cropping(to: rect) ?? image
 	}
 }
