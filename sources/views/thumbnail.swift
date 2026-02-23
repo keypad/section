@@ -8,26 +8,29 @@ struct ThumbnailView: View {
 	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
 	private let width: CGFloat = 200
 	private let height: CGFloat = 160
+	private let label: CGFloat = 30
 
 	var body: some View {
-		ZStack {
-			if let thumbnail = item.thumbnail {
-				Image(nsImage: thumbnail)
-					.resizable()
-					.scaledToFill()
-					.frame(width: width, height: height)
-			} else {
-				Color.white.opacity(0.05)
-				if let icon = item.icon {
-					Image(nsImage: icon)
+		VStack(spacing: 0) {
+			ZStack {
+				if let thumbnail = item.thumbnail {
+					Image(nsImage: thumbnail)
 						.resizable()
-						.frame(width: 40, height: 40)
-						.opacity(0.5)
+						.scaledToFill()
+						.frame(width: width, height: height - label)
+						.clipped()
+				} else {
+					Color.white.opacity(0.05)
+					if let icon = item.icon {
+						Image(nsImage: icon)
+							.resizable()
+							.frame(width: 40, height: 40)
+							.opacity(0.5)
+					}
 				}
 			}
-		}
-		.frame(width: width, height: height)
-		.overlay(alignment: .bottom) {
+			.frame(width: width, height: height - label)
+
 			HStack(spacing: 6) {
 				if let icon = item.icon {
 					Image(nsImage: icon)
@@ -42,9 +45,10 @@ struct ThumbnailView: View {
 			}
 			.padding(.horizontal, 10)
 			.frame(maxWidth: .infinity, alignment: .leading)
-			.frame(height: 30)
+			.frame(height: label)
 			.background(.ultraThinMaterial.opacity(0.95))
 		}
+		.frame(width: width, height: height)
 		.compositingGroup()
 		.clipShape(shape, style: FillStyle(antialiased: true))
 		.overlay(
