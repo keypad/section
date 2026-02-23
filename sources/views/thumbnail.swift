@@ -5,53 +5,52 @@ struct ThumbnailView: View {
 	let selected: Bool
 
 	private let accent = Color(red: 0.832, green: 0.69, blue: 0.549)
+	private let radius: CGFloat = 10
 
 	var body: some View {
-		VStack(spacing: 8) {
-			ZStack {
-				RoundedRectangle(cornerRadius: 8)
-					.fill(.white.opacity(0.05))
-					.frame(height: 112)
+		ZStack(alignment: .bottom) {
+			Color.white.opacity(0.05)
 
-				if let thumbnail = item.thumbnail {
-					Image(nsImage: thumbnail)
-						.resizable()
-						.aspectRatio(contentMode: .fit)
-						.frame(height: 112)
-						.clipShape(RoundedRectangle(cornerRadius: 6))
-				} else if let icon = item.icon {
-					Image(nsImage: icon)
-						.resizable()
-						.frame(width: 48, height: 48)
-						.opacity(0.6)
-				}
+			if let thumbnail = item.thumbnail {
+				Image(nsImage: thumbnail)
+					.resizable()
+					.scaledToFill()
+			} else if let icon = item.icon {
+				Image(nsImage: icon)
+					.resizable()
+					.frame(width: 40, height: 40)
+					.opacity(0.5)
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			}
 
 			HStack(spacing: 6) {
 				if let icon = item.icon {
 					Image(nsImage: icon)
 						.resizable()
-						.frame(width: 16, height: 16)
+						.frame(width: 14, height: 14)
 				}
 
 				Text(item.name)
-					.font(.system(size: 11))
-					.foregroundStyle(.white.opacity(0.7))
+					.font(.system(size: 11, weight: .medium))
+					.foregroundStyle(.white.opacity(0.8))
 					.lineLimit(1)
 					.truncationMode(.tail)
 			}
+			.padding(.horizontal, 10)
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.frame(height: 30)
+			.background(.black.opacity(0.5))
 		}
-		.padding(8)
-		.background(
-			RoundedRectangle(cornerRadius: 10)
-				.fill(selected ? accent.opacity(0.15) : .clear)
-		)
+		.frame(width: 200, height: 160)
+		.clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
 		.overlay(
-			RoundedRectangle(cornerRadius: 10)
-				.strokeBorder(selected ? accent : .white.opacity(0.1), lineWidth: selected ? 2 : 1)
+			RoundedRectangle(cornerRadius: radius, style: .continuous)
+				.strokeBorder(
+					selected ? accent : .white.opacity(0.08),
+					lineWidth: selected ? 2 : 1
+				)
 		)
 		.shadow(color: selected ? accent.opacity(0.3) : .clear, radius: 12)
-		.frame(width: 200, height: 160)
 		.animation(.easeInOut(duration: 0.1), value: selected)
 	}
 }
