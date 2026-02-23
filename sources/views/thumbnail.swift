@@ -14,7 +14,9 @@ struct ThumbnailView: View {
 			if let thumbnail = item.thumbnail {
 				Image(nsImage: thumbnail)
 					.resizable()
-					.scaledToFill()
+					.aspectRatio(contentMode: .fill)
+					.frame(width: 200, height: 160)
+					.clipped()
 			} else if let icon = item.icon {
 				Image(nsImage: icon)
 					.resizable()
@@ -32,16 +34,17 @@ struct ThumbnailView: View {
 
 				Text(item.name)
 					.font(.system(size: 11, weight: .medium))
-					.foregroundStyle(.white.opacity(0.8))
+					.foregroundStyle(.white.opacity(0.9))
 					.lineLimit(1)
 					.truncationMode(.tail)
 			}
 			.padding(.horizontal, 10)
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.frame(height: 30)
-			.background(.black.opacity(0.5))
+			.background(.ultraThinMaterial.opacity(0.9))
 		}
 		.frame(width: 200, height: 160)
+		.clipped()
 		.clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
 		.overlay(
 			RoundedRectangle(cornerRadius: radius, style: .continuous)
