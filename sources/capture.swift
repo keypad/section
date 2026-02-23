@@ -56,38 +56,10 @@ enum Capture {
 				if seen && !urgent { continue }
 				if !seen && count >= limit { continue }
 
-				let filter = SCContentFilter(desktopIndependentWindow: window)
-				let config = SCStreamConfiguration()
-
-				let cap: CGFloat = 420
-				let w = item.bounds.width
-				let h = item.bounds.height
-				let fit = min(cap / w, cap / h, 1)
-
-				config.width = Int(w * fit * 2)
-				config.height = Int(h * fit * 2)
-				config.scalesToFit = true
-				config.preservesAspectRatio = true
-				config.showsCursor = false
-				config.ignoreShadowsSingleWindow = true
-				config.shouldBeOpaque = true
-
-				if let image = try? await SCScreenshotManager.captureImage(
-					contentFilter: filter,
-					configuration: config
-				) {
-					let body: CGFloat = 160 - 28
-					let width = max(Int(Grid.width(item, height: 160, bar: 28) * 2), 1)
-					let height = max(Int(body * 2), 1)
-					guard let output = output(image, width: width, height: height) else { continue }
-					let result = NSImage(
-						cgImage: output,
-						size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
-					)
-					count += 1
-					await vault.store(id: id, image: result)
-					await MainActor.run { completion([id: result]) }
-				}
+				guard let result = await image(window: window, item: item, trim: true) else { continue }
+				count += 1
+				await vault.store(id: id, image: result)
+				await MainActor.run { completion([id: result]) }
 			}
 		}
 	}
@@ -112,35 +84,7 @@ enum Capture {
 			for window in windows {
 				let id = window.windowID
 				guard let item = lookup[id] else { continue }
-				let filter = SCContentFilter(desktopIndependentWindow: window)
-				let config = SCStreamConfiguration()
-
-				let cap: CGFloat = 420
-				let w = item.bounds.width
-				let h = item.bounds.height
-				let fit = min(cap / w, cap / h, 1)
-
-				config.width = Int(w * fit * 2)
-				config.height = Int(h * fit * 2)
-				config.scalesToFit = true
-				config.preservesAspectRatio = true
-				config.showsCursor = false
-				config.ignoreShadowsSingleWindow = true
-				config.shouldBeOpaque = true
-
-				guard let image = try? await SCScreenshotManager.captureImage(
-					contentFilter: filter,
-					configuration: config
-				) else { continue }
-
-				let body: CGFloat = 160 - 28
-				let width = max(Int(Grid.width(item, height: 160, bar: 28) * 2), 1)
-				let height = max(Int(body * 2), 1)
-				guard let output = outputlive(image, width: width, height: height) else { continue }
-				let result = NSImage(
-					cgImage: output,
-					size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
-				)
+				guard let result = await image(window: window, item: item, trim: false) else { continue }
 				results[id] = result
 				await vault.store(id: id, image: result)
 			}
@@ -153,15 +97,36 @@ enum Capture {
 		let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
 		guard let windows = content?.windows else { return nil }
 		guard let window = windows.first(where: { $0.windowID == item.id }) else { return nil }
+		return await image(window: window, item: item, trim: false)
+	}
 
+	private static func image(window: SCWindow, item: WindowItem, trim: Bool) async -> NSImage? {
 		let filter = SCContentFilter(desktopIndependentWindow: window)
-		let config = SCStreamConfiguration()
+		let config = config(item)
+		guard let image = try? await SCScreenshotManager.captureImage(
+			contentFilter: filter,
+			configuration: config
+		) else { return nil }
+		let (width, height) = size(item)
+		let frame: CGImage?
+		if trim {
+			frame = output(image, width: width, height: height)
+		} else {
+			frame = outputlive(image, width: width, height: height)
+		}
+		guard let frame else { return nil }
+		return NSImage(
+			cgImage: frame,
+			size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
+		)
+	}
 
+	private static func config(_ item: WindowItem) -> SCStreamConfiguration {
+		let config = SCStreamConfiguration()
 		let cap: CGFloat = 420
 		let w = item.bounds.width
 		let h = item.bounds.height
 		let fit = min(cap / w, cap / h, 1)
-
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
 		config.scalesToFit = true
@@ -169,20 +134,14 @@ enum Capture {
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
 		config.shouldBeOpaque = true
+		return config
+	}
 
-		guard let image = try? await SCScreenshotManager.captureImage(
-			contentFilter: filter,
-			configuration: config
-		) else { return nil }
-
+	private static func size(_ item: WindowItem) -> (Int, Int) {
 		let body: CGFloat = 160 - 28
 		let width = max(Int(Grid.width(item, height: 160, bar: 28) * 2), 1)
 		let height = max(Int(body * 2), 1)
-		guard let output = outputlive(image, width: width, height: height) else { return nil }
-		return NSImage(
-			cgImage: output,
-			size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
-		)
+		return (width, height)
 	}
 
 	private static func outputlive(_ image: CGImage, width: Int, height: Int) -> CGImage? {
