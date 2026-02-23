@@ -5,41 +5,37 @@ import ScreenCaptureKit
 
 @MainActor
 final class Live {
-	private var boxes: [CGWindowID: Box] = [:]
+	private var box: Box?
 	private let apply: @MainActor ([CGWindowID: NSImage]) -> Void
 
 	init(apply: @escaping @MainActor ([CGWindowID: NSImage]) -> Void) {
 		self.apply = apply
 	}
 
-	func start(items: [WindowItem]) {
+	func start(item: WindowItem?) {
 		stop()
-		guard !items.isEmpty else { return }
+		guard let item else { return }
 		Task { @MainActor [weak self] in
-			await self?.open(items)
+			await self?.open(item)
 		}
 	}
 
 	func stop() {
-		let all = Array(boxes.values)
-		boxes.removeAll()
+		guard let box else { return }
+		self.box = nil
 		Task { @MainActor in
-			for box in all {
-				await box.stop()
-			}
+			await box.stop()
 		}
 	}
 
-	private func open(_ items: [WindowItem]) async {
-		for item in items {
-			let box = Box(item: item) { [weak self] id, image in
-				Task { @MainActor in
-					self?.apply([id: image])
-				}
+	private func open(_ item: WindowItem) async {
+		let box = Box(item: item) { [weak self] id, image in
+			Task { @MainActor in
+				self?.apply([id: image])
 			}
-			boxes[item.id] = box
-			await box.start()
 		}
+		self.box = box
+		await box.start()
 	}
 }
 
@@ -85,8 +81,8 @@ final class Box: NSObject, SCStreamOutput {
 
 		config.width = Int(w * fit * 2)
 		config.height = Int(h * fit * 2)
-		config.minimumFrameInterval = CMTime(value: 1, timescale: 15)
-		config.queueDepth = 3
+		config.minimumFrameInterval = CMTime(value: 1, timescale: 10)
+		config.queueDepth = 2
 		config.showsCursor = false
 		config.ignoreShadowsSingleWindow = true
 		config.shouldBeOpaque = true
