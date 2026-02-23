@@ -35,7 +35,7 @@ struct ThumbnailView: View {
 				if let icon = item.icon {
 					Image(nsImage: icon)
 						.resizable()
-						.frame(width: 13, height: 13)
+						.frame(width: 14, height: 14)
 				}
 				Text(item.name)
 					.font(.system(size: 11, weight: .medium))
