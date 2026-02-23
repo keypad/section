@@ -135,37 +135,17 @@ final class App: NSObject, NSApplicationDelegate {
 
 	@objc
 	private func setnormal() {
-		theme = .normal
-		update()
-		if !open { return }
-		overlay?.show(on: Screens.current(), state: state, theme: theme)
-		applysnapshot(items: state.items, animated: false)
-		if video {
-			start()
-			startvideo()
-		}
+		settheme(.normal)
 	}
 
 	@objc
 	private func setsquare() {
-		theme = .square
-		update()
-		if !open { return }
-		overlay?.show(on: Screens.current(), state: state, theme: theme)
-		applysnapshot(items: state.items, animated: false)
-		if video {
-			start()
-			startvideo()
-		}
+		settheme(.square)
 	}
 
 	@objc
 	private func setminimal() {
-		theme = .minimal
-		update()
-		if !open { return }
-		stop()
-		overlay?.show(on: Screens.current(), state: state, theme: theme)
+		settheme(.minimal)
 	}
 
 	@objc
@@ -184,6 +164,22 @@ final class App: NSObject, NSApplicationDelegate {
 	@objc
 	private func exit() {
 		NSApplication.shared.terminate(nil)
+	}
+
+	private func settheme(_ next: Theme) {
+		theme = next
+		update()
+		guard open else { return }
+		if theme == .minimal {
+			stop()
+		}
+		overlay?.show(on: Screens.current(), state: state, theme: theme)
+		if theme == .minimal { return }
+		applysnapshot(items: state.items, animated: false)
+		if video {
+			start()
+			startvideo()
+		}
 	}
 }
 
@@ -275,12 +271,6 @@ extension App: HotkeyHandler {
 		live?.start(item: state.selected)
 	}
 
-	private func refresh() {
-		let items = state.items
-		guard !items.isEmpty else { return }
-		applysnapshot(items: items, animated: false)
-	}
-
 	private func windows() -> [WindowItem] {
 		if permonitor {
 			return Windows.list(on: Screens.current())
@@ -308,7 +298,9 @@ extension App: HotkeyHandler {
 		if theme == .minimal { return }
 		stopvideo()
 		videotimer = Timer.scheduledTimer(withTimeInterval: 0.60, repeats: true) { [weak self] _ in
-			self?.videotick()
+			Task { @MainActor [weak self] in
+				self?.videotick()
+			}
 		}
 	}
 
