@@ -57,10 +57,10 @@ enum Capture {
 				let filter = SCContentFilter(desktopIndependentWindow: window)
 				let config = SCStreamConfiguration()
 
-				let max: CGFloat = 560
+				let cap: CGFloat = 560
 				let w = item.bounds.width
 				let h = item.bounds.height
-				let fit = min(max / w, max / h, 1)
+				let fit = min(cap / w, cap / h, 1)
 
 				config.width = Int(w * fit * 2)
 				config.height = Int(h * fit * 2)
@@ -73,8 +73,15 @@ enum Capture {
 				if let image = try? await SCScreenshotManager.captureImage(
 					contentFilter: filter,
 					configuration: config
-				), let output = output(image) {
-					let result = NSImage(cgImage: output, size: NSSize(width: 200, height: 160))
+				) {
+					let body: CGFloat = 160 - 28
+					let width = max(Int(Grid.width(item, height: 160, bar: 28) * 2), 1)
+					let height = max(Int(body * 2), 1)
+					guard let output = output(image, width: width, height: height) else { continue }
+					let result = NSImage(
+						cgImage: output,
+						size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
+					)
 					await vault.store(id: id, image: result)
 					await MainActor.run { completion([id: result]) }
 				}
@@ -96,9 +103,9 @@ enum Capture {
 		return list
 	}
 
-	private static func output(_ image: CGImage) -> CGImage? {
+	private static func output(_ image: CGImage, width: Int, height: Int) -> CGImage? {
 		guard let first = trim(image) else { return nil }
-		return scale(first, maxw: 400, maxh: 320)
+		return fill(first, width: width, height: height)
 	}
 
 	private static func trim(_ image: CGImage) -> CGImage? {
@@ -110,18 +117,31 @@ enum Capture {
 		return image.cropping(to: rect) ?? image
 	}
 
-	private static func scale(_ image: CGImage, maxw: Int, maxh: Int) -> CGImage? {
-		let width = image.width
-		let height = image.height
-		let fit = min(CGFloat(maxw) / CGFloat(width), CGFloat(maxh) / CGFloat(height), 1)
-		let outw = max(Int(CGFloat(width) * fit), 1)
-		let outh = max(Int(CGFloat(height) * fit), 1)
+	private static func fill(_ image: CGImage, width: Int, height: Int) -> CGImage? {
+		let sw = CGFloat(image.width)
+		let sh = CGFloat(image.height)
+		let dw = CGFloat(width)
+		let dh = CGFloat(height)
+		let sr = sw / sh
+		let dr = dw / dh
 
+		var src = CGRect(x: 0, y: 0, width: sw, height: sh)
+		if sr > dr {
+			let cw = floor(sh * dr)
+			let x = floor((sw - cw) / 2)
+			src = CGRect(x: x, y: 0, width: cw, height: sh)
+		} else if sr < dr {
+			let ch = floor(sw / dr)
+			let y = max(sh - ch, 0)
+			src = CGRect(x: 0, y: y, width: sw, height: ch)
+		}
+
+		guard let crop = image.cropping(to: src) else { return nil }
 		let color = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
 		guard let context = CGContext(
 			data: nil,
-			width: outw,
-			height: outh,
+			width: width,
+			height: height,
 			bitsPerComponent: 8,
 			bytesPerRow: 0,
 			space: color,
@@ -130,8 +150,8 @@ enum Capture {
 
 		context.interpolationQuality = .high
 		context.setFillColor(CGColor(gray: 0.06, alpha: 1))
-		context.fill(CGRect(x: 0, y: 0, width: outw, height: outh))
-		context.draw(image, in: CGRect(x: 0, y: 0, width: outw, height: outh))
+		context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+		context.draw(crop, in: CGRect(x: 0, y: 0, width: width, height: height))
 		return context.makeImage()
 	}
 }
