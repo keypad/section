@@ -26,6 +26,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var squareitem: NSMenuItem?
 	private var minimalitem: NSMenuItem?
 	private var warmitem: NSMenuItem?
+	private var lightitem: NSMenuItem?
 	private var catppuccinitem: NSMenuItem?
 	private var norditem: NSMenuItem?
 	private var tokyonightitem: NSMenuItem?
@@ -34,6 +35,7 @@ final class App: NSObject, NSApplicationDelegate {
 
 	func applicationDidFinishLaunching(_ notification: Notification) {
 		Permissions.check()
+		accent = defaultaccent()
 		overlay = Panel()
 		overlay?.onspace = { [weak self] in
 			guard let self else { return }
@@ -92,6 +94,9 @@ final class App: NSObject, NSApplicationDelegate {
 		let warm = NSMenuItem(title: "Warm", action: #selector(setwarm), keyEquivalent: "")
 		warm.target = self
 		colormenu.addItem(warm)
+		let light = NSMenuItem(title: "Light", action: #selector(setlight), keyEquivalent: "")
+		light.target = self
+		colormenu.addItem(light)
 		let catppuccin = NSMenuItem(title: "Catppuccin", action: #selector(setcatppuccin), keyEquivalent: "")
 		catppuccin.target = self
 		colormenu.addItem(catppuccin)
@@ -132,6 +137,7 @@ final class App: NSObject, NSApplicationDelegate {
 		self.squareitem = square
 		self.minimalitem = minimal
 		self.warmitem = warm
+		self.lightitem = light
 		self.catppuccinitem = catppuccin
 		self.norditem = nord
 		self.tokyonightitem = tokyonight
@@ -150,6 +156,7 @@ final class App: NSObject, NSApplicationDelegate {
 		squareitem?.state = theme == .square ? .on : .off
 		minimalitem?.state = theme == .minimal ? .on : .off
 		warmitem?.state = accent == .warm ? .on : .off
+		lightitem?.state = accent == .light ? .on : .off
 		catppuccinitem?.state = accent == .catppuccin ? .on : .off
 		norditem?.state = accent == .nord ? .on : .off
 		tokyonightitem?.state = accent == .tokyonight ? .on : .off
@@ -193,6 +200,11 @@ final class App: NSObject, NSApplicationDelegate {
 	@objc
 	private func setwarm() {
 		setaccent(.warm)
+	}
+
+	@objc
+	private func setlight() {
+		setaccent(.light)
 	}
 
 	@objc
@@ -259,6 +271,12 @@ final class App: NSObject, NSApplicationDelegate {
 		update()
 		guard open else { return }
 		overlay?.show(on: Screens.current(), state: state, theme: theme, accent: accent)
+	}
+
+	private func defaultaccent() -> Accent {
+		let match = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
+		if match == .aqua { return .light }
+		return .warm
 	}
 }
 
