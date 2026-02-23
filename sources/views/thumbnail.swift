@@ -8,7 +8,7 @@ struct ThumbnailView: View {
 	private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
 	private let width: CGFloat = 200
 	private let height: CGFloat = 160
-	private let label: CGFloat = 20
+	private let bar: CGFloat = 28
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -17,7 +17,7 @@ struct ThumbnailView: View {
 					Image(nsImage: thumbnail)
 						.resizable()
 						.scaledToFill()
-						.frame(width: width, height: height - label)
+						.frame(width: width, height: height - bar)
 						.clipped()
 				} else {
 					Color.white.opacity(0.05)
@@ -29,7 +29,7 @@ struct ThumbnailView: View {
 					}
 				}
 			}
-			.frame(width: width, height: height - label)
+			.frame(width: width, height: height - bar)
 
 			HStack(spacing: 6) {
 				if let icon = item.icon {
@@ -45,8 +45,8 @@ struct ThumbnailView: View {
 			}
 			.padding(.horizontal, 10)
 			.frame(maxWidth: .infinity, alignment: .leading)
-			.frame(height: label)
-			.background(.ultraThinMaterial.opacity(0.95))
+			.frame(height: bar, alignment: .center)
+			.background(Color.black.opacity(0.68))
 		}
 		.frame(width: width, height: height)
 		.compositingGroup()
