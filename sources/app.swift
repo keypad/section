@@ -11,6 +11,7 @@ final class App: NSObject, NSApplicationDelegate {
 	private var permonitor = false
 	private var retunework: DispatchWorkItem?
 	private var laststep: CFAbsoluteTime = 0
+	private var cyclingvideo = false
 	private var session = 0
 	private var refreshid = 0
 	private var tray: NSStatusItem?
@@ -180,10 +181,15 @@ extension App: HotkeyHandler {
 	private func stop() {
 		retunework?.cancel()
 		retunework = nil
+		cyclingvideo = false
 		live?.stop()
 	}
 
 	private func queuevideo() {
+		if !cyclingvideo {
+			cyclingvideo = true
+			live?.stop()
+		}
 		retunework?.cancel()
 		let work = DispatchWorkItem { [weak self] in
 			self?.retune()
@@ -205,6 +211,7 @@ extension App: HotkeyHandler {
 	}
 
 	private func retune() {
+		cyclingvideo = false
 		live?.start(item: state.selected)
 	}
 
@@ -226,7 +233,7 @@ extension App: HotkeyHandler {
 		refreshid += 1
 		let refresh = refreshid
 		let focus = state.index
-		let limit = video ? 3 : items.count
+		let limit = video ? 1 : items.count
 		Capture.thumbnails(for: items, focus: focus, limit: limit) { [weak self] results in
 			guard let self else { return }
 			guard open else { return }
