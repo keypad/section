@@ -34,7 +34,7 @@ enum Capture {
 
 	private static let vault = Vault()
 
-	static func thumbnails(for items: [WindowItem], focus: Int, completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
+	static func thumbnails(for items: [WindowItem], focus: Int, limit: Int = .max, completion: @escaping @MainActor @Sendable ([CGWindowID: NSImage]) -> Void) {
 		let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
 		let priority = rank(items, focus: focus)
 		Task {
@@ -47,17 +47,19 @@ enum Capture {
 			guard let windows = content?.windows else { return }
 			let table = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
 
+			var count = 0
 			for (index, id) in priority.enumerated() {
 				guard let window = table[id] else { continue }
 				guard let item = lookup[id] else { continue }
 				let urgent = index < 3
 				let seen = await vault.seen(id)
 				if seen && !urgent { continue }
+				if !seen && count >= limit { continue }
 
 				let filter = SCContentFilter(desktopIndependentWindow: window)
 				let config = SCStreamConfiguration()
 
-				let cap: CGFloat = 560
+				let cap: CGFloat = 420
 				let w = item.bounds.width
 				let h = item.bounds.height
 				let fit = min(cap / w, cap / h, 1)
@@ -82,6 +84,7 @@ enum Capture {
 						cgImage: output,
 						size: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
 					)
+					count += 1
 					await vault.store(id: id, image: result)
 					await MainActor.run { completion([id: result]) }
 				}
@@ -112,7 +115,7 @@ enum Capture {
 				let filter = SCContentFilter(desktopIndependentWindow: window)
 				let config = SCStreamConfiguration()
 
-				let cap: CGFloat = 480
+				let cap: CGFloat = 420
 				let w = item.bounds.width
 				let h = item.bounds.height
 				let fit = min(cap / w, cap / h, 1)
@@ -154,7 +157,7 @@ enum Capture {
 		let filter = SCContentFilter(desktopIndependentWindow: window)
 		let config = SCStreamConfiguration()
 
-		let cap: CGFloat = 480
+		let cap: CGFloat = 420
 		let w = item.bounds.width
 		let h = item.bounds.height
 		let fit = min(cap / w, cap / h, 1)
