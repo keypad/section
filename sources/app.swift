@@ -7,8 +7,8 @@ final class App: NSObject, NSApplicationDelegate {
 	private var state = SwitcherState()
 	private var live: Live?
 	private var open = false
-	private var video = false
-	private var permonitor = true
+	private var video = true
+	private var permonitor = false
 	private var retunework: DispatchWorkItem?
 	private var session = 0
 	private var refreshid = 0
@@ -191,7 +191,7 @@ extension App: HotkeyHandler {
 			self?.retune()
 		}
 		retunework = work
-		DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
 	}
 
 	private func retune() {
