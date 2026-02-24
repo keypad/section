@@ -51,11 +51,11 @@ tell application "Finder"
     set current view of container window to icon view
     set toolbar visible of container window to false
     set statusbar visible of container window to false
-    set bounds of container window to {120, 120, 1020, 680}
+    set bounds of container window to {320, 140, 760, 700}
     set opts to icon view options of container window
     set arrangement of opts to not arranged
-    set icon size of opts to 128
-    set text size of opts to 14
+    set icon size of opts to 96
+    set text size of opts to 12
     set background color of opts to {8704, 9216, 10240}
     set win to bounds of container window
     set leftedge to item 1 of win
@@ -64,9 +64,8 @@ tell application "Finder"
     set bottomedge to item 4 of win
     set centerx to (leftedge + rightedge) / 2
     set centery to (topedge + bottomedge) / 2
-    set spacing to 190
-    set position of item "Section.app" of container window to {centerx - spacing, centery}
-    set position of item "Applications" of container window to {centerx + spacing, centery}
+    set position of item "Section.app" of container window to {centerx, centery + 120}
+    set position of item "Applications" of container window to {centerx, centery - 120}
     set the extension hidden of item "Section.app" to true
     close
     open
