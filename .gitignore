@@ -1,10 +1,9 @@
 Package.resolved
-CLAUDE.md
-AGENTS.md
 .swiftpm
 .build
 watch
 .env
+.env.local
 dist
 .DS_Store
 node_modules
