@@ -6,3 +6,5 @@ AGENTS.md
 watch
 .env
 dist
+.DS_Store
+node_modules
