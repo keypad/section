@@ -2,8 +2,6 @@ Package.resolved
 .swiftpm
 .build
 watch
-.env
-.env.local
 dist
 .DS_Store
 node_modules
